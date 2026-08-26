@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 
 function loadLocalEnv() {
   if (!existsSync(".env")) return;
@@ -24,14 +24,21 @@ if (parsed.hostname.endsWith(".neon.tech") && !parsed.searchParams.has("options"
   parsed.searchParams.set("options", `endpoint=${parsed.hostname.split(".")[0].replace("-pooler", "")}`);
 }
 
-const result = spawnSync("psql", [parsed.toString(), "-v", "ON_ERROR_STOP=1", "-f", "database/migrations/002_trust_escrow.sql"], {
-  stdio: "inherit",
-  shell: false
-});
+const migrations = readdirSync("database/migrations")
+  .filter((file) => file.endsWith(".sql"))
+  .sort();
 
-if (result.error) {
-  console.error("psql est requis pour appliquer la migration Neon.", result.error.message);
-  process.exit(1);
+for (const migration of migrations) {
+  console.log(`\nApplying ${migration}`);
+  const result = spawnSync("psql", [parsed.toString(), "-v", "ON_ERROR_STOP=1", "-f", `database/migrations/${migration}`], {
+    stdio: "inherit",
+    shell: false
+  });
+  if (result.error) {
+    console.error("psql est requis pour appliquer la migration Neon.", result.error.message);
+    process.exit(1);
+  }
+  if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-process.exit(result.status ?? 1);
+console.log(`\nApplied ${migrations.length} migration(s).`);

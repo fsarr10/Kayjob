@@ -20,6 +20,7 @@ export default function RootLayout() {
       <Tabs.Screen name="orders/index" options={{ href: null }} />
       <Tabs.Screen name="account/index" options={{ href: null }} />
       <Tabs.Screen name="admin/index" options={{ href: null }} />
+      <Tabs.Screen name="preview" options={{ href: null }} />
     </Tabs>
   );
 }

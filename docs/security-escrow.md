@@ -9,6 +9,7 @@ Cette spécification accompagne `database/migrations/002_trust_escrow.sql`. Le d
 - Les fichiers originaux sont privés. Une URL signée courte est générée à la demande, jamais enregistrée comme lien public.
 - Un aperçu image/vidéo est filigrané côté serveur. Les textes sont tronqués et le code est exposé sous forme de démo ou capture avant paiement.
 - Le prestataire n'est crédité que par une écriture `release` dans `transactions` au passage à `completed_released`.
+- Sur mobile, `apps/mobile/src/SecurePreview.tsx` active la protection de capture Expo pendant la vue sensible et journalise les captures détectées via callback. Le composant est volontairement un shell : le flux chunké réel doit être servi par l'API `preview-stream` et ne doit jamais devenir une URL de fichier publique.
 - Un job planifié libère automatiquement une commande après `review_deadline_at` si aucun litige n'est ouvert.
 - Toute écriture financière porte une `idempotency_key` unique. Une répétition de webhook ne crée jamais une seconde écriture.
 - Un avis est refusé par la contrainte trigger tant que la commande n'est pas `completed_released`.
@@ -25,6 +26,12 @@ draft|awaiting_payment -> cancelled
 ```
 
 `final_delivered` ne signifie pas que le fichier est servi : le contrôleur doit refaire le contrôle de statut dans la même transaction que la génération de l'URL signée.
+
+## Visionneuse sécurisée
+
+`POST /orders/{id}/deliver-preview` crée un `delivery_file` et, pour une image/vidéo, une session `preview_sessions` de 15 minutes. Le client reçoit le token brut une seule fois. `GET /orders/{id}/preview-stream?token=...` vérifie le hash du token, le viewer autorisé, l'expiration, le statut de la commande et le débit avant de servir des chunks. Chaque capture ou tentative suspecte est enregistrée dans `preview_security_events`.
+
+La protection native est une défense en profondeur : Android bénéficie de `FLAG_SECURE` via Expo Screen Capture, tandis que les appareils iOS peuvent empêcher ou signaler certaines captures selon la version et le type de capture. Aucun navigateur ou appareil externe ne peut être garanti inviolable ; le filigrane dynamique et la traçabilité restent obligatoires.
 
 ## Adaptateur de paiement
 
