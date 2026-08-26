@@ -1,48 +1,65 @@
+import { ExternalLink, Image as ImageIcon, Link2 } from "lucide-react-native";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { Badge, Card, Page, PrimaryButton, SectionTitle, styles as shared } from "../../src/components";
+import { AccentCard, Avatar, Badge, Card, Page, PrimaryButton, Screen, SectionTitle, styles as shared } from "../../src/components";
 import { portfolio, services } from "../../src/data";
-import { colors, radii } from "../../src/theme";
+import { colors, radii, space } from "../../src/theme";
 
 export default function PortfolioScreen() {
   const student = services[0];
 
   return (
-    <ScrollView style={local.screen}>
-      <Page>
-        <SectionTitle title="Portfolio public" action={`kayjob.sn/${student.pseudo}`} />
-        <Card>
-          <Text style={local.title}>{student.name}</Text>
-          <Text style={shared.meta}>{student.category} · {student.city} · Identité vérifiée</Text>
-          <View style={local.badges}>
-            <Badge label={`SamaScore ${student.score}/100`} />
-            <Badge label={`${student.rating}/5`} />
-            <Badge label={student.mode} />
-          </View>
-          <View style={local.scorePill}><Text style={local.scoreText}>SamaScore {student.score}/100</Text></View>
-        </Card>
-        {portfolio.map((work) => (
-          <Card key={work.title}>
-            <View style={[local.preview, work.type === "Lien" ? local.linkPreview : local.imagePreview]}>
-              <Text style={local.previewText}>{work.type}</Text>
+    <Screen>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <Page>
+          <SectionTitle title="Portfolio public" action={`kayjob.sn/${student.pseudo}`} />
+          <AccentCard icon="portfolio">
+            <View style={local.profileTop}>
+              <Avatar name={student.name} size={62} />
+              <View style={local.main}>
+                <Text style={local.heroTitle}>{student.name}</Text>
+                <Text style={local.heroCopy}>{student.category} · {student.city} · {student.mode}</Text>
+              </View>
             </View>
-            <Text style={local.title}>{work.title}</Text>
-            <Text style={shared.meta}>{work.detail}</Text>
-            <PrimaryButton label="Voir la réalisation" />
-          </Card>
-        ))}
-      </Page>
-    </ScrollView>
+            <View style={local.badges}>
+              <Badge label="Identité vérifiée" tone="dark" />
+              <Badge label={`SamaScore ${student.score}/100`} tone="amber" />
+              <Badge label={`${student.rating}/5`} />
+            </View>
+          </AccentCard>
+
+          <SectionTitle title="Réalisations" action="Image + lien" />
+          {portfolio.map((work) => (
+            <Card key={work.title}>
+              <View style={[local.preview, work.type === "Lien" ? local.linkPreview : local.imagePreview]}>
+                {work.type === "Lien" ? <Link2 color={colors.blue} size={26} /> : <ImageIcon color={colors.green} size={26} />}
+                <Text style={local.previewText}>{work.type}</Text>
+              </View>
+              <View style={local.workHead}>
+                <View style={local.main}>
+                  <Text style={local.title}>{work.title}</Text>
+                  <Text style={shared.meta}>{work.detail}</Text>
+                </View>
+                <ExternalLink color={colors.green} size={19} />
+              </View>
+              <PrimaryButton label="Voir la réalisation" icon="portfolio" />
+            </Card>
+          ))}
+        </Page>
+      </ScrollView>
+    </Screen>
   );
 }
 
 const local = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper },
-  title: { fontSize: 17, fontWeight: "900", color: colors.ink },
+  profileTop: { flexDirection: "row", alignItems: "center", gap: 12 },
+  main: { flex: 1, gap: 3 },
+  heroTitle: { fontSize: 25, lineHeight: 31, fontWeight: "900", color: "#fff", letterSpacing: 0 },
+  heroCopy: { color: "#dfe8e4", lineHeight: 20 },
   badges: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  scorePill: { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: "#fff1b8" },
-  scoreText: { color: "#674b00", fontWeight: "900" },
-  preview: { height: 130, borderRadius: radii.sm, alignItems: "center", justifyContent: "center", backgroundColor: colors.band },
-  imagePreview: { backgroundColor: "#e8f1ec" },
-  linkPreview: { backgroundColor: "#eaf0ff" },
-  previewText: { color: colors.green, fontWeight: "900" }
+  preview: { height: 146, borderRadius: radii.lg, alignItems: "center", justifyContent: "center", gap: space.sm },
+  imagePreview: { backgroundColor: colors.mint },
+  linkPreview: { backgroundColor: colors.blueSoft },
+  previewText: { color: colors.ink, fontWeight: "900" },
+  workHead: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  title: { fontSize: 18, fontWeight: "900", color: colors.ink, letterSpacing: 0 }
 });

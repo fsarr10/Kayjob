@@ -1,8 +1,9 @@
 import { Stack } from "expo-router";
+import { colors } from "../src/theme";
 
 export default function RootLayout() {
   return (
-    <Stack screenOptions={{ headerStyle: { backgroundColor: "#f7faf8" }, headerTintColor: "#151b19", headerTitleStyle: { fontWeight: "900" } }}>
+    <Stack screenOptions={{ headerStyle: { backgroundColor: colors.paper }, headerShadowVisible: false, headerTintColor: colors.ink, headerTitleStyle: { fontWeight: "900" }, contentStyle: { backgroundColor: colors.paper } }}>
       <Stack.Screen name="index" options={{ title: "KayJob" }} />
       <Stack.Screen name="services/index" options={{ title: "Services" }} />
       <Stack.Screen name="missions/index" options={{ title: "Missions" }} />
