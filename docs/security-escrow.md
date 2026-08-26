@@ -31,6 +31,10 @@ draft|awaiting_payment -> cancelled
 
 `POST /orders/{id}/deliver-preview` crée un `delivery_file` et, pour une image/vidéo, une session `preview_sessions` de 15 minutes. Le client reçoit le token brut une seule fois. `GET /orders/{id}/preview-stream?token=...` vérifie le hash du token, le viewer autorisé, l'expiration, le statut de la commande et le débit avant de servir des chunks. Chaque capture ou tentative suspecte est enregistrée dans `preview_security_events`.
 
+## Cloudflare R2
+
+Le bucket R2 doit rester privé et être accessible uniquement par une clé API R2 limitée à ce bucket. L'API utilise l'endpoint S3 `https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com`, `region: auto` et les packages AWS SDK S3. Les uploads passent par une URL PUT signée avec le `Content-Type` inclus dans la signature ; les fichiers finaux utilisent une URL GET signée de courte durée. Les previews sont proxifiées par l'API avec `Range` et `Cache-Control: no-store`, afin de ne pas exposer une URL R2 directe.
+
 La protection native est une défense en profondeur : Android bénéficie de `FLAG_SECURE` via Expo Screen Capture, tandis que les appareils iOS peuvent empêcher ou signaler certaines captures selon la version et le type de capture. Aucun navigateur ou appareil externe ne peut être garanti inviolable ; le filigrane dynamique et la traçabilité restent obligatoires.
 
 ## Adaptateur de paiement

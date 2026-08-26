@@ -2,6 +2,8 @@
 
 API Node.js minimale connectée à Neon PostgreSQL. Elle protège les invariants du séquestre dans des transactions SQL et expose un contrat HTTP compatible avec une future implémentation Laravel.
 
+Le stockage privé utilise Cloudflare R2 via l’API S3. Le bucket ne doit pas être exposé publiquement ; l’API délivre des URLs PUT temporaires pour les uploads et des URLs GET courtes pour les fichiers finaux. Les previews passent par `/preview-stream` et ne renvoient pas d’URL R2 au client.
+
 ## Lancer en local
 
 ```bash
@@ -20,6 +22,7 @@ Les routes authentifiées utilisent `Authorization: Bearer <session_token>`. Pou
 - `GET /api/profiles/:pseudo`
 - `POST /api/me/profile`
 - `POST /api/me/portfolio`
+- `POST /api/uploads/presign`
 - `GET /api/missions`
 - `POST /api/missions`
 - `POST /api/missions/:id/offers`
@@ -31,6 +34,7 @@ Les routes authentifiées utilisent `Authorization: Bearer <session_token>`. Pou
 - `POST /api/webhooks/payments/:provider`
 - `POST /api/orders/:id/deliver-preview`
 - `GET /api/orders/:id/preview-stream`
+- `GET /api/orders/:id/files/:fileId`
 - `POST /api/orders/:id/deliver-final`
 - `POST /api/orders/:id/validate`
 - `POST /api/orders/:id/dispute`

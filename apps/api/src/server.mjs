@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import { pool } from "./db.mjs";
 import { assertTransition, canDeliverFinal } from "./order-state.mjs";
 import { redactContactContent } from "./message-safety.mjs";
+import { signedDownload, signedUpload, streamObject } from "./storage.mjs";
 
 const port = Number(process.env.API_PORT || 4000);
 const json = (res, status, body) => {
@@ -16,6 +17,7 @@ const readBody = (req) => new Promise((resolve, reject) => {
   req.on("error", reject);
 });
 const hash = (value) => createHash("sha256").update(value).digest("hex");
+const safeFileName = (value) => String(value || "file").replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 100);
 
 async function requestOtp(body) {
   const channel = body.phone ? "phone" : body.email ? "email" : null;
@@ -128,6 +130,14 @@ async function route(req, res) {
       FROM services s JOIN student_profiles sp ON sp.id = s.profile_id JOIN users u ON u.id = sp.user_id LEFT JOIN categories c ON c.id = s.category_id LEFT JOIN cities ci ON ci.id = u.city_id
       WHERE s.is_active = true ORDER BY sp.sama_score DESC, s.starting_price ASC`);
     return json(res, 200, { data: result.rows });
+  }
+  if (req.method === "POST" && path === "/api/uploads/presign") {
+    const ownerId = await authenticatedUserId(req); const body = await readBody(req);
+    const contentType = String(body.contentType || "application/octet-stream");
+    const allowed = /^(image\/(jpeg|png|webp|gif)|video\/(mp4|quicktime)|application\/pdf|text\/plain)$/i.test(contentType);
+    if (!allowed || !body.fileName || !["portfolio", "preview", "final", "dispute"].includes(body.purpose)) throw Object.assign(new Error("Unsupported file or purpose"), { statusCode: 422 });
+    const key = `${body.purpose}/${ownerId}/${randomUUID()}-${safeFileName(body.fileName)}`;
+    return json(res, 200, { data: { key, contentType, expiresIn: 900, uploadUrl: await signedUpload(key, contentType) } });
   }
   const profile = path.match(/^\/api\/profiles\/([a-z0-9_-]+)$/i);
   if (req.method === "GET" && profile) {
@@ -285,13 +295,46 @@ async function route(req, res) {
   }
   const previewDelivery = path.match(/^\/api\/orders\/(\d+)\/deliver-preview$/);
   if (req.method === "POST" && previewDelivery) {
-    await authenticatedUserId(req);
-    return json(res, 501, { error: "Preview requires the S3 watermarking and streaming worker", next: "Generate delivery_file and preview_session server-side" });
+    const providerId = await authenticatedUserId(req); const body = await readBody(req);
+    if (!body.storageKey || !body.mimeType || !Number.isInteger(body.sizeBytes)) throw Object.assign(new Error("storageKey, mimeType and sizeBytes are required"), { statusCode: 422 });
+    const db = await pool.connect();
+    try {
+      await db.query("BEGIN");
+      const order = await db.query(`SELECT o.id, o.status FROM orders o JOIN student_profiles sp ON sp.id = o.profile_id WHERE o.id = $1 AND sp.user_id = $2 FOR UPDATE`, [Number(previewDelivery[1]), providerId]);
+      if (!order.rowCount) throw Object.assign(new Error("Order not found"), { statusCode: 404 });
+      if (!["escrowed", "in_progress", "preview_delivered"].includes(order.rows[0].status)) throw Object.assign(new Error("Preview requires a held payment"), { statusCode: 409 });
+      const token = randomUUID() + randomUUID();
+      const file = await db.query(`INSERT INTO delivery_files (order_id, uploader_id, kind, original_storage_key, preview_storage_key, mime_type, size_bytes, streaming_only, dynamic_watermark_text)
+        VALUES ($1, $2, 'preview', $3, $3, $4, $5, $6, $7) RETURNING id`, [Number(previewDelivery[1]), providerId, body.storageKey, body.mimeType, body.sizeBytes, /^(image|video)\//.test(body.mimeType), body.watermark || `KayJob · commande ${previewDelivery[1]}`]);
+      await db.query("INSERT INTO preview_sessions (delivery_file_id, viewer_id, token_hash, expires_at) SELECT $1, client_id, $2, CURRENT_TIMESTAMP + INTERVAL '15 minutes' FROM orders WHERE id = $3", [file.rows[0].id, hash(token), Number(previewDelivery[1])]);
+      await db.query("UPDATE orders SET status = 'preview_delivered', delivered_at = CURRENT_TIMESTAMP WHERE id = $1", [Number(previewDelivery[1])]);
+      await db.query("COMMIT");
+      return json(res, 201, { data: { orderId: Number(previewDelivery[1]), previewToken: token, expiresIn: 900, streaming: true } });
+    } catch (error) { await db.query("ROLLBACK"); throw error; } finally { db.release(); }
   }
   const previewStream = path.match(/^\/api\/orders\/(\d+)\/preview-stream$/);
   if (req.method === "GET" && previewStream) {
-    await authenticatedUserId(req);
-    return json(res, 501, { error: "Preview streaming requires the private object storage adapter" });
+    const viewerId = await authenticatedUserId(req); const token = url.searchParams.get("token");
+    if (!token) throw Object.assign(new Error("preview token is required"), { statusCode: 422 });
+    const session = await pool.query(`SELECT ps.id, ps.expires_at, ps.revoked_at, df.original_storage_key, df.mime_type, df.size_bytes
+      FROM preview_sessions ps JOIN delivery_files df ON df.id = ps.delivery_file_id JOIN orders o ON o.id = df.order_id
+      WHERE ps.token_hash = $1 AND df.order_id = $2 AND ps.viewer_id = $3 AND o.status IN ('preview_delivered', 'final_delivered', 'client_review', 'completed_released')`, [hash(token), Number(previewStream[1]), viewerId]);
+    if (!session.rowCount || session.rows[0].revoked_at || new Date(session.rows[0].expires_at) <= new Date()) throw Object.assign(new Error("Preview token expired or invalid"), { statusCode: 403 });
+    const object = await streamObject(session.rows[0].original_storage_key, req.headers.range);
+    const contentLength = object.ContentLength || session.rows[0].size_bytes;
+    res.writeHead(req.headers.range ? 206 : 200, { "content-type": session.rows[0].mime_type, "content-length": contentLength, "accept-ranges": "bytes", "cache-control": "no-store" });
+    object.Body.pipe(res);
+    await pool.query("UPDATE preview_sessions SET last_chunk_at = CURRENT_TIMESTAMP, chunks_served = chunks_served + 1 WHERE id = $1", [session.rows[0].id]);
+    return;
+  }
+  const finalFile = path.match(/^\/api\/orders\/(\d+)\/files\/(\d+)$/);
+  if (req.method === "GET" && finalFile) {
+    const viewerId = await authenticatedUserId(req);
+    const file = await pool.query(`SELECT df.original_storage_key FROM delivery_files df JOIN orders o ON o.id = df.order_id
+      WHERE df.id = $1 AND df.order_id = $2 AND df.kind = 'final' AND o.status IN ('final_delivered', 'client_review', 'completed_released')
+      AND (o.client_id = $3 OR o.profile_id IN (SELECT id FROM student_profiles WHERE user_id = $3))`, [Number(finalFile[2]), Number(finalFile[1]), viewerId]);
+    if (!file.rowCount) return json(res, 404, { error: "Final file not found or not available" });
+    return json(res, 200, { data: { downloadUrl: await signedDownload(file.rows[0].original_storage_key, 300), expiresIn: 300 } });
   }
   const messages = path.match(/^\/api\/orders\/(\d+)\/messages$/);
   if (req.method === "POST" && messages) {
