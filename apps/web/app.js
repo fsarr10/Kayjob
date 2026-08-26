@@ -1,0 +1,313 @@
+const storageKey = "kayjob.webapp.state";
+const categories = ["Informatique", "Design", "Média", "Éducation", "Digital", "Créatif", "Services physiques"];
+const cities = ["Dakar", "Thiès", "Saint-Louis", "Ziguinchor", "Kaolack", "Touba", "Mbour", "Diourbel"];
+
+const seed = {
+  services: [
+    talent("srv-1", "Awa Diop", "awadesign", "Kaolack", "Design", "Logo et identité visuelle", 5000, "remote", 92, "././assets/portfolio-logo.svg"),
+    talent("srv-2", "Mamadou Fall", "mfallcode", "Dakar", "Informatique", "Site vitrine React", 15000, "remote", 89, "././assets/portfolio-web.svg"),
+    talent("srv-3", "Fatou Ndiaye", "fatoulearn", "Saint-Louis", "Éducation", "Cours particuliers et correction", 3000, "both", 86, "././assets/portfolio-course.svg"),
+    talent("srv-4", "Cheikh Bâ", "cheikhfix", "Thiès", "Services physiques", "Réparation PC et réseau", 7000, "onsite", 82, "././assets/portfolio-repair.svg")
+  ],
+  missions: [
+    { id: "mis-1", title: "Filmer une cérémonie", city: "Kaolack", category: "Média", budget: 18000, mode: "onsite", offers: 4 },
+    { id: "mis-2", title: "Créer une affiche de conférence", city: "Touba", category: "Design", budget: 6000, mode: "remote", offers: 9 }
+  ],
+  orders: [
+    { id: "ord-1", serviceId: "srv-2", status: "escrowed", gross: 15000, commission: 1500, net: 13500 },
+    { id: "ord-2", serviceId: "srv-1", status: "delivered", gross: 5000, commission: 500, net: 4500 }
+  ],
+  messages: [
+    { orderId: "ord-1", me: false, text: "Bonjour, je peux livrer une première version demain." },
+    { orderId: "ord-1", me: true, text: "Parfait, j'envoie le brief et les couleurs." }
+  ],
+  notifications: ["Paiement escrow confirmé.", "Nouvelle proposition reçue.", "Document étudiant à valider."],
+  disputes: [],
+  selectedOrderId: "ord-1"
+};
+
+let state = load();
+const view = document.querySelector("#view");
+const modal = document.querySelector("#modal");
+const modalForm = document.querySelector("#modalForm");
+
+function talent(id, name, pseudo, city, category, title, price, mode, score, image) {
+  return {
+    id, name, pseudo, city, category, title, price, mode, score, rating: 4.8,
+    skills: [category, mode === "onsite" ? "Présentiel" : "Remote"],
+    works: [
+      { title: "Réalisation client", type: "Image", image, url: "https://example.com/kayjob/work", description: "Mission validée avec livrables et avis." },
+      { title: "Lien portfolio", type: "Lien", image, url: "https://example.com/kayjob/portfolio", description: "Projet externe visible par les recruteurs." }
+    ]
+  };
+}
+
+function load() {
+  try {
+    return JSON.parse(localStorage.getItem(storageKey)) || structuredClone(seed);
+  } catch {
+    return structuredClone(seed);
+  }
+}
+
+function save() {
+  localStorage.setItem(storageKey, JSON.stringify(state));
+}
+
+function money(value) {
+  return Number(value).toLocaleString("fr-FR") + " FCFA";
+}
+
+function mode(modeValue) {
+  return { remote: "À distance", onsite: "Sur place", both: "Les deux" }[modeValue];
+}
+
+function orderStatus(status) {
+  return { escrowed: "Paiement bloqué", delivered: "Livré", paid_out: "Payé", disputed: "Litige" }[status] || status;
+}
+
+function currentRoute() {
+  return location.hash.replace("#", "") || "dashboard";
+}
+
+function setTitle(route) {
+  const titles = {
+    dashboard: ["Application", "Tableau de bord"],
+    discover: ["Marketplace", "Découvrir les talents"],
+    missions: ["Demandes clients", "Missions ouvertes"],
+    orders: ["Escrow", "Commandes"],
+    messages: ["Temps réel", "Messages"],
+    portfolio: ["Profil public", "Portfolio"],
+    admin: ["Back-office", "Administration"]
+  };
+  const [eyebrow, title] = titles[route] || titles.dashboard;
+  document.querySelector("#routeEyebrow").textContent = eyebrow;
+  document.querySelector("#routeTitle").textContent = title;
+  document.querySelectorAll("[data-route]").forEach((link) => link.classList.toggle("active", link.dataset.route === route));
+}
+
+function render() {
+  const route = currentRoute();
+  setTitle(route);
+  const pages = { dashboard, discover, missions, orders, messages, portfolio, admin };
+  view.innerHTML = (pages[route] || dashboard)();
+  bindActions();
+}
+
+function dashboard() {
+  const gmv = state.orders.reduce((sum, order) => sum + order.gross, 0);
+  return `
+    <section class="grid four">
+      ${metric(state.services.length, "Prestataires", "profils actifs")}
+      ${metric(state.missions.length, "Missions", "besoins ouverts")}
+      ${metric(money(gmv), "GMV", "commandes simulées")}
+      ${metric(state.disputes.length, "Litiges", "à arbitrer")}
+    </section>
+    <section class="split" style="margin-top:16px">
+      <div class="panel">
+        <h2>Commandes récentes</h2>
+        <div class="list">${state.orders.map(orderRow).join("")}</div>
+      </div>
+      <div class="panel">
+        <h2>Actions rapides</h2>
+        <div class="actions">
+          <button class="primary" data-modal="service">Publier un service</button>
+          <button class="secondary" data-modal="mission">Publier une mission</button>
+          <button class="secondary" data-route-to="portfolio">Voir portfolio</button>
+        </div>
+      </div>
+    </section>`;
+}
+
+function metric(value, label, detail) {
+  return `<article class="metric"><strong>${value}</strong><h3>${label}</h3><p class="meta">${detail}</p></article>`;
+}
+
+function discover() {
+  return `
+    <section class="filters">
+      <label>Recherche<input id="q" placeholder="logo, dev, cours..." /></label>
+      <label>Catégorie<select id="cat"><option>Toutes</option>${categories.map(option).join("")}</select></label>
+      <label>Ville<select id="city"><option>Toutes</option>${cities.map(option).join("")}</select></label>
+      <label>Budget max<input id="budget" type="number" placeholder="15000" /></label>
+    </section>
+    <section class="grid" id="serviceResults">${serviceCards(state.services)}</section>`;
+}
+
+function serviceCards(rows) {
+  return rows.map((item) => `
+    <article class="card service-card">
+      <div class="card-head"><div class="avatar">${item.name.split(" ").map((p) => p[0]).join("")}</div><div><h3>${item.title}</h3><p class="meta">${item.name} · ${item.city}</p></div></div>
+      <div class="row"><span class="badge">${mode(item.mode)}</span><span class="badge yellow">SamaScore ${item.score}/100</span></div>
+      <p>${item.skills.join(" · ")}</p>
+      <strong>${money(item.price)}</strong>
+      <div class="actions"><button class="secondary" data-profile="${item.id}">Portfolio</button><button class="primary" data-order="${item.id}">Commander</button></div>
+    </article>`).join("");
+}
+
+function missions() {
+  return `
+    <div class="actions" style="margin-bottom:16px"><button class="primary" data-modal="mission">Publier une mission</button></div>
+    <section class="list">${state.missions.map((item) => `
+      <article class="list-item">
+        <div><h3>${item.title}</h3><p class="meta">${item.city} · ${item.category} · ${mode(item.mode)} · ${item.offers} devis</p></div>
+        <div class="actions"><strong>${money(item.budget)}</strong><button class="secondary" data-offer="${item.id}">Faire un devis</button></div>
+      </article>`).join("")}</section>`;
+}
+
+function orders() {
+  return `<section class="list">${state.orders.map(orderRow).join("")}</section>`;
+}
+
+function orderRow(order) {
+  const item = state.services.find((service) => service.id === order.serviceId);
+  return `<article class="list-item"><div><h3>${order.id} · ${item.title}</h3><p class="meta">${money(order.gross)} brut · ${money(order.net)} net · ${orderStatus(order.status)}</p></div><div class="actions"><button class="secondary" data-select-order="${order.id}">Messages</button><button class="primary" data-paid="${order.id}">Valider</button><button class="danger" data-dispute="${order.id}">Litige</button></div></article>`;
+}
+
+function messages() {
+  const order = state.orders.find((item) => item.id === state.selectedOrderId) || state.orders[0];
+  state.selectedOrderId = order.id;
+  const rows = state.messages.filter((message) => message.orderId === order.id);
+  return `
+    <section class="panel message-box">
+      <h2>${order.id} · ${orderStatus(order.status)}</h2>
+      ${rows.map((message) => `<div class="bubble ${message.me ? "me" : ""}">${message.text}</div>`).join("")}
+      <form class="composer" id="messageForm"><input id="messageText" placeholder="Écrire un message..." /><button class="primary">Envoyer</button></form>
+    </section>`;
+}
+
+function portfolio() {
+  const profile = state.services[0];
+  return `
+    <section class="split">
+      <aside class="panel"><h2>kayjob.sn/${profile.pseudo}</h2><p>${profile.name} · ${profile.city}</p><span class="badge yellow">SamaScore ${profile.score}/100</span><div class="actions" style="margin-top:14px"><button class="primary" data-modal="work">Ajouter une réalisation</button></div></aside>
+      <div class="work-grid">${profile.works.map((work) => `<article class="work-card"><img src="${work.image}" alt="" /><div><span class="badge ${work.type === "Lien" ? "blue" : ""}">${work.type}</span><h3>${work.title}</h3><p class="meta">${work.description}</p><a class="primary" href="${work.url}" target="_blank" rel="noreferrer">Ouvrir</a></div></article>`).join("")}</div>
+    </section>`;
+}
+
+function admin() {
+  return `
+    <section class="grid four">
+      ${metric(state.services.length, "Utilisateurs", "profils à suivre")}
+      ${metric("3", "Vérifications", "documents privés")}
+      ${metric(state.orders.length, "Escrow", "transactions")}
+      ${metric(state.disputes.length, "Litiges", "file admin")}
+    </section>
+    <section class="grid three" style="margin-top:16px">
+      <article class="panel"><h2>Vérifications</h2><p class="meta">Carte étudiant, téléphone et email universitaire.</p></article>
+      <article class="panel"><h2>Paiements</h2><p class="meta">Wave, Orange Money, Free Money, carte.</p></article>
+      <article class="panel"><h2>Régions</h2><p class="meta">Dakar, Thiès, Saint-Louis, Ziguinchor, Kaolack.</p></article>
+    </section>`;
+}
+
+function option(item) {
+  return `<option>${item}</option>`;
+}
+
+function openModal(type) {
+  const forms = {
+    service: `<h2>Nouveau service</h2><label>Titre<input name="title" required /></label><label>Catégorie<select name="category">${categories.map(option).join("")}</select></label><label>Prix<input name="price" type="number" required /></label><div class="actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="service">Publier</button></div>`,
+    mission: `<h2>Nouvelle mission</h2><label>Titre<input name="title" required /></label><label>Ville<select name="city">${cities.map(option).join("")}</select></label><label>Budget<input name="budget" type="number" required /></label><div class="actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="mission">Publier</button></div>`,
+    work: `<h2>Nouvelle réalisation</h2><label>Titre<input name="title" required /></label><label>Lien<input name="url" placeholder="https://..." /></label><label>Description<textarea name="description" required></textarea></label><div class="actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="work">Ajouter</button></div>`
+  };
+  modalForm.innerHTML = forms[type];
+  modal.showModal();
+}
+
+function bindActions() {
+  document.querySelectorAll("[data-route-to]").forEach((button) => button.addEventListener("click", () => { location.hash = button.dataset.routeTo; }));
+  document.querySelectorAll("[data-modal]").forEach((button) => button.addEventListener("click", () => openModal(button.dataset.modal)));
+  document.querySelectorAll("[data-order]").forEach((button) => button.addEventListener("click", () => createOrder(button.dataset.order)));
+  document.querySelectorAll("[data-offer]").forEach((button) => button.addEventListener("click", () => addOffer(button.dataset.offer)));
+  document.querySelectorAll("[data-paid]").forEach((button) => button.addEventListener("click", () => updateOrder(button.dataset.paid, "paid_out")));
+  document.querySelectorAll("[data-dispute]").forEach((button) => button.addEventListener("click", () => openDispute(button.dataset.dispute)));
+  document.querySelectorAll("[data-select-order]").forEach((button) => button.addEventListener("click", () => { state.selectedOrderId = button.dataset.selectOrder; save(); location.hash = "messages"; }));
+  document.querySelectorAll("[data-profile]").forEach((button) => button.addEventListener("click", () => { state.services.unshift(...state.services.splice(state.services.findIndex((item) => item.id === button.dataset.profile), 1)); save(); location.hash = "portfolio"; }));
+  const q = document.querySelector("#q");
+  if (q) ["input", "change"].forEach((eventName) => document.querySelectorAll("#q,#cat,#city,#budget").forEach((field) => field.addEventListener(eventName, filterDiscover)));
+  const form = document.querySelector("#messageForm");
+  if (form) form.addEventListener("submit", sendMessage);
+}
+
+function filterDiscover() {
+  const q = document.querySelector("#q").value.toLowerCase();
+  const cat = document.querySelector("#cat").value;
+  const city = document.querySelector("#city").value;
+  const budget = Number(document.querySelector("#budget").value || Infinity);
+  const rows = state.services
+    .filter((item) => cat === "Toutes" || item.category === cat)
+    .filter((item) => city === "Toutes" || item.mode === "remote" || item.city === city)
+    .filter((item) => item.price <= budget)
+    .filter((item) => !q || `${item.title} ${item.name} ${item.skills.join(" ")}`.toLowerCase().includes(q));
+  document.querySelector("#serviceResults").innerHTML = serviceCards(rows);
+  bindActions();
+}
+
+function createOrder(serviceId) {
+  const service = state.services.find((item) => item.id === serviceId);
+  const commission = Math.max(250, Math.round(service.price * .1));
+  const order = { id: `ord-${Date.now()}`, serviceId, status: "escrowed", gross: service.price, commission, net: service.price - commission };
+  state.orders.unshift(order);
+  state.selectedOrderId = order.id;
+  state.notifications.unshift(`Commande créée : ${money(service.price)} placés en escrow.`);
+  save();
+  location.hash = "orders";
+  render();
+}
+
+function addOffer(id) {
+  const mission = state.missions.find((item) => item.id === id);
+  mission.offers += 1;
+  state.notifications.unshift(`Devis ajouté sur ${mission.title}.`);
+  save();
+  render();
+}
+
+function updateOrder(id, status) {
+  state.orders.find((item) => item.id === id).status = status;
+  state.notifications.unshift(`Commande ${id} mise à jour : ${orderStatus(status)}.`);
+  save();
+  render();
+}
+
+function openDispute(id) {
+  state.disputes.unshift({ id: `lit-${Date.now()}`, orderId: id, status: "open" });
+  updateOrder(id, "disputed");
+}
+
+function sendMessage(event) {
+  event.preventDefault();
+  const input = document.querySelector("#messageText");
+  if (!input.value.trim()) return;
+  state.messages.push({ orderId: state.selectedOrderId, me: true, text: input.value.trim() });
+  input.value = "";
+  save();
+  render();
+}
+
+modalForm.addEventListener("submit", (event) => {
+  const action = event.submitter?.value;
+  if (!["service", "mission", "work"].includes(action)) return;
+  const data = new FormData(modalForm);
+  if (action === "service") {
+    state.services.unshift(talent(`srv-${Date.now()}`, "Nouveau talent", "nouveautalent", "Dakar", data.get("category"), data.get("title"), Number(data.get("price")), "remote", 72, "././assets/portfolio-web.svg"));
+  }
+  if (action === "mission") {
+    state.missions.unshift({ id: `mis-${Date.now()}`, title: data.get("title"), city: data.get("city"), category: "Design", budget: Number(data.get("budget")), mode: "remote", offers: 0 });
+  }
+  if (action === "work") {
+    state.services[0].works.unshift(makePortfolio(data.get("title"), "Lien", "././assets/portfolio-web.svg", data.get("url") || "https://example.com/kayjob", data.get("description")));
+  }
+  state.notifications.unshift("Action enregistrée dans KayJob.");
+  save();
+  render();
+});
+
+document.querySelector("#quickMission").addEventListener("click", () => openModal("mission"));
+document.querySelector("#resetDemo").addEventListener("click", () => {
+  localStorage.removeItem(storageKey);
+  state = structuredClone(seed);
+  render();
+});
+window.addEventListener("hashchange", render);
+render();

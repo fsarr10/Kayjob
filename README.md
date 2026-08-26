@@ -15,6 +15,12 @@ Marketplace nationale des talents étudiants au Sénégal.
 xdg-open /home/falilou/Bureau/Kayjob/public/index.html
 ```
 
+## Ouvrir l'application web
+
+```bash
+xdg-open /home/falilou/Bureau/Kayjob/apps/web/index.html
+```
+
 ## Vérifier et construire
 
 ```bash

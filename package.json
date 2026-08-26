@@ -6,6 +6,7 @@
   "scripts": {
     "build": "node scripts/build-static.mjs",
     "start": "npx serve public",
-    "check": "node --check public/app.js"
+    "start:web": "npx serve apps/web",
+    "check": "node --check public/app.js && node --check apps/web/app.js"
   }
 }

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>KayJob App</title>
+    <link rel="icon" href="./assets/kayjob-logo.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="#dashboard">
+          <img src="./assets/kayjob-logo.svg" alt="" />
+          <span>KayJob</span>
+        </a>
+        <nav class="side-nav" aria-label="Navigation application">
+          <a href="#dashboard" data-route="dashboard">Tableau de bord</a>
+          <a href="#discover" data-route="discover">Découvrir</a>
+          <a href="#missions" data-route="missions">Missions</a>
+          <a href="#orders" data-route="orders">Commandes</a>
+          <a href="#messages" data-route="messages">Messages</a>
+          <a href="#portfolio" data-route="portfolio">Portfolio</a>
+          <a href="#admin" data-route="admin">Admin</a>
+        </nav>
+      </aside>
+
+      <div class="main">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow" id="routeEyebrow">Application</p>
+            <h1 id="routeTitle">Tableau de bord</h1>
+          </div>
+          <div class="top-actions">
+            <button class="ghost" id="resetDemo">Réinitialiser</button>
+            <button class="primary" id="quickMission">Publier une mission</button>
+          </div>
+        </header>
+        <main id="view" class="view"></main>
+      </div>
+    </div>
+
+    <dialog id="modal">
+      <form method="dialog" class="modal-card" id="modalForm"></form>
+    </dialog>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
