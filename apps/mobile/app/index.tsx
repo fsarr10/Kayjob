@@ -2,7 +2,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { Bell, MapPin, ShieldCheck, Sparkles, TrendingUp } from "lucide-react-native";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useEffect, useState } from "react";
 import { AccentCard, Card, Metric, Page, PrimaryButton, Screen, SearchField, SectionTitle, ServiceCard, styles as shared } from "../src/components";
 import { loadMissions, loadOrders, loadServices } from "../src/live-data";
@@ -30,7 +30,10 @@ export default function HomeScreen() {
                 <Text style={local.subtitle}>Talents étudiants au Sénégal</Text>
               </View>
             </View>
-            <View style={local.alertButton}><Bell color={colors.ink} size={19} /></View>
+            <View style={local.headerActions}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Se connecter" onPress={() => router.push("/login")} style={local.loginButton}><Text style={local.loginText}>Se connecter</Text></Pressable>
+              <View style={local.alertButton}><Bell color={colors.ink} size={19} /></View>
+            </View>
           </View>
 
           <AccentCard icon="spark">
@@ -96,6 +99,9 @@ const local = StyleSheet.create({
   brand: { fontSize: 30, fontWeight: "900", color: colors.ink, letterSpacing: 0 },
   subtitle: { fontSize: 14, color: colors.muted },
   alertButton: { width: 42, height: 42, borderRadius: radii.sm, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  loginButton: { minHeight: 42, justifyContent: "center", paddingHorizontal: 12, borderRadius: radii.sm, backgroundColor: colors.navy },
+  loginText: { color: "#fff", fontSize: 12, fontWeight: "900" },
   eyebrow: { color: colors.yellow, fontWeight: "900", textTransform: "uppercase", fontSize: 12 },
   heroTitle: { fontSize: 31, lineHeight: 37, fontWeight: "900", color: "#fff", letterSpacing: 0 },
   heroCopy: { color: "#dfe8e4", lineHeight: 21 },
