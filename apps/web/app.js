@@ -46,7 +46,7 @@ async function syncRemote() {
   if (!apiBase) return;
   try {
     const services = await apiFetch("/api/services");
-    if (Array.isArray(services) && services.length) state.services = services.map((row) => talent(row.id, row.full_name, row.pseudo || "talent", row.city || "Sénégal", row.category || "Compétence", row.title, Number(row.starting_price), row.delivery_mode || "remote", Number(row.sama_score || 0), "./assets/portfolio-web.svg"));
+    if (Array.isArray(services) && services.length) state.services = services.map((row) => ({ ...talent(row.id, row.full_name, row.pseudo || "talent", row.city || "Sénégal", row.category || "Compétence", row.title, Number(row.starting_price), row.delivery_mode || "remote", Number(row.sama_score || 0), "./assets/portfolio-web.svg"), avatar: row.avatar_url }));
     const missions = await apiFetch("/api/missions");
     if (Array.isArray(missions)) state.missions = missions.map((row) => ({ id: row.id, title: row.title, city: row.city || "Sénégal", category: row.category || "Mission", budget: Number(row.budget_max), mode: row.delivery_mode || "remote", offers: 0 }));
     if (sessionStorage.getItem("kayjob.session")) {
@@ -171,7 +171,7 @@ function discover() {
 function serviceCards(rows) {
   return rows.map((item) => `
     <article class="card service-card">
-      <div class="card-head"><div class="avatar">${item.name.split(" ").map((p) => p[0]).join("")}</div><div><h3>${item.title}</h3><p class="meta">${item.name} · ${item.city}</p></div></div>
+      <div class="card-head"><div class="avatar" style="${item.avatar ? `background-image:url('${item.avatar}');background-size:cover` : ""}">${item.avatar ? "" : item.name.split(" ").map((p) => p[0]).join("")}</div><div><h3>${item.title}</h3><p class="meta">${item.name} · ${item.city}</p></div></div>
       <div class="row"><span class="badge">${mode(item.mode)}</span><span class="badge yellow">SamaScore ${item.score}/100</span></div>
       <p>${item.skills.join(" · ")}</p>
       <strong>${money(item.price)}</strong>

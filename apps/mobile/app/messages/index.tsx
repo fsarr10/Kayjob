@@ -1,11 +1,13 @@
 import { Paperclip, Send } from "lucide-react-native";
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useState } from "react";
 import { Avatar, Badge, Card, Page, Screen, SectionTitle, styles as shared } from "../../src/components";
 import { messages, orders, services } from "../../src/data";
 import { colors, radii, shadow, space } from "../../src/theme";
 
 export default function MessagesScreen() {
   const service = services[1];
+  const [draft, setDraft] = useState("");
 
   return (
     <Screen>
@@ -34,11 +36,11 @@ export default function MessagesScreen() {
           ))}
 
           <View style={[local.composer, shadow]}>
-            <TouchableOpacity style={local.iconButton} activeOpacity={0.8}>
+            <TouchableOpacity style={local.iconButton} activeOpacity={0.8} onPress={() => Alert.alert("Pièce jointe", "Les fichiers seront envoyés dans l’espace de commande sécurisé.")}>
               <Paperclip color={colors.green} size={19} />
             </TouchableOpacity>
-            <TextInput placeholder="Message ou lien de livraison..." placeholderTextColor="#7b8984" style={local.input} />
-            <TouchableOpacity style={local.sendButton} activeOpacity={0.8}>
+            <TextInput value={draft} onChangeText={setDraft} placeholder="Message ou lien de livraison..." placeholderTextColor="#7b8984" style={local.input} />
+            <TouchableOpacity style={local.sendButton} activeOpacity={0.8} onPress={() => { if (!draft.trim()) return; Alert.alert("Message prêt", "Connecte-toi pour envoyer ce message dans la commande."); setDraft(""); }}>
               <Send color="#fff" size={18} />
             </TouchableOpacity>
           </View>

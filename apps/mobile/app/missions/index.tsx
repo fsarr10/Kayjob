@@ -1,11 +1,13 @@
 import { CalendarClock, MapPin } from "lucide-react-native";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { AccentCard, Badge, Card, Page, PrimaryButton, Screen, SecondaryButton, SectionTitle, styles as shared } from "../../src/components";
 import { loadMissions } from "../../src/live-data";
 import { colors, radii, space } from "../../src/theme";
 
 export default function MissionsScreen() {
+  const router = useRouter();
   const [missions, setMissions] = useState<Awaited<ReturnType<typeof loadMissions>>>([]);
   useEffect(() => { loadMissions().then(setMissions).catch(() => undefined); }, []);
   return (
@@ -16,7 +18,7 @@ export default function MissionsScreen() {
           <AccentCard icon="briefcase">
             <Text style={local.heroTitle}>Publie un besoin, reçois des devis qualifiés.</Text>
             <Text style={local.heroCopy}>Budget, délai, ville si nécessaire, puis sélection du prestataire et paiement en escrow.</Text>
-            <SecondaryButton label="Préparer la mission" icon="briefcase" />
+            <SecondaryButton label="Préparer la mission" icon="briefcase" onPress={() => Alert.alert("Nouvelle mission", "La publication sera disponible après connexion à ton compte.")} />
           </AccentCard>
 
           {missions.map((mission) => (
@@ -37,7 +39,7 @@ export default function MissionsScreen() {
                 <CalendarClock color={colors.muted} size={16} />
                 <Text style={shared.meta}>Réponse recommandée aujourd'hui</Text>
               </View>
-              <PrimaryButton label="Faire un devis" icon="briefcase" />
+              <PrimaryButton label="Faire un devis" icon="briefcase" onPress={() => router.push("/account")} />
             </Card>
           ))}
         </Page>

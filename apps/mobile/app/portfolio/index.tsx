@@ -1,5 +1,5 @@
 import { ExternalLink, Image as ImageIcon, Link2 } from "lucide-react-native";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 import { AccentCard, Avatar, Badge, Card, Page, PrimaryButton, Screen, SectionTitle, styles as shared } from "../../src/components";
 import { portfolio, services } from "../../src/data";
 import { colors, radii, space } from "../../src/theme";
@@ -41,7 +41,7 @@ export default function PortfolioScreen() {
                 </View>
                 <ExternalLink color={colors.green} size={19} />
               </View>
-              <PrimaryButton label="Voir la réalisation" icon="portfolio" />
+              <PrimaryButton label="Voir la réalisation" icon="portfolio" onPress={() => work.type === "Lien" ? Linking.openURL("https://github.com/") : Alert.alert("Réalisation", work.detail)} />
             </Card>
           ))}
         </Page>

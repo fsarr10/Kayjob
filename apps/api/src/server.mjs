@@ -153,7 +153,7 @@ async function route(req, res) {
   if (req.method === "POST" && path === "/api/auth/request-otp") return json(res, 200, { data: await requestOtp(await readBody(req)) });
   if (req.method === "POST" && path === "/api/auth/verify-otp") return json(res, 200, { data: await verifyOtp(await readBody(req)) });
   if (req.method === "GET" && path === "/api/services") {
-    const result = await pool.query(`SELECT s.id, s.title, s.description, s.delivery_mode, s.starting_price, sp.sama_score, u.full_name, u.pseudo, c.name AS category, ci.name AS city
+    const result = await pool.query(`SELECT s.id, s.title, s.description, s.delivery_mode, s.starting_price, sp.sama_score, u.full_name, u.pseudo, u.avatar_url, c.name AS category, ci.name AS city
       FROM services s JOIN student_profiles sp ON sp.id = s.profile_id JOIN users u ON u.id = sp.user_id LEFT JOIN categories c ON c.id = s.category_id LEFT JOIN cities ci ON ci.id = u.city_id
       WHERE s.is_active = true ORDER BY sp.sama_score DESC, s.starting_price ASC`);
     return json(res, 200, { data: result.rows });
@@ -168,7 +168,7 @@ async function route(req, res) {
   }
   const profile = path.match(/^\/api\/profiles\/([a-z0-9_-]+)$/i);
   if (req.method === "GET" && profile) {
-    const result = await pool.query(`SELECT u.id, u.full_name, u.pseudo, u.verification_status, ci.name AS city, sp.headline, sp.bio, sp.availability, sp.sama_score
+    const result = await pool.query(`SELECT u.id, u.full_name, u.pseudo, u.avatar_url, u.verification_status, ci.name AS city, sp.headline, sp.bio, sp.availability, sp.sama_score
       FROM users u LEFT JOIN cities ci ON ci.id = u.city_id LEFT JOIN student_profiles sp ON sp.user_id = u.id WHERE lower(u.pseudo) = lower($1)`, [profile[1]]);
     if (!result.rowCount) return json(res, 404, { error: "Profile not found" });
     const user = result.rows[0];

@@ -1,6 +1,7 @@
 import { CheckCircle2, CircleDollarSign, PackageCheck } from "lucide-react-native";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useEffect, useState } from "react";
+import { useRouter } from "expo-router";
 import { AccentCard, Badge, Card, Page, PrimaryButton, Screen, SectionTitle, styles as shared } from "../../src/components";
 import { loadOrders } from "../../src/live-data";
 import { colors, radii, space } from "../../src/theme";
@@ -8,6 +9,7 @@ import { colors, radii, space } from "../../src/theme";
 const steps = ["Paiement", "Travail", "Livraison", "Validation", "Reversement"];
 
 export default function OrdersScreen() {
+  const router = useRouter();
   const [orders, setOrders] = useState<Awaited<ReturnType<typeof loadOrders>>>([]);
   useEffect(() => { loadOrders().then(setOrders).catch(() => undefined); }, []);
   return (
@@ -48,7 +50,7 @@ export default function OrdersScreen() {
                 <CheckCircle2 color={colors.green} size={17} />
                 <Text style={local.netText}>Net prestataire : {order.net}</Text>
               </View>
-              <PrimaryButton label={order.status === "Livré" ? "Valider et libérer" : "Ouvrir la commande"} icon="orders" />
+            <PrimaryButton label={order.status === "Livré" ? "Valider et libérer" : "Ouvrir la commande"} icon="orders" onPress={() => router.push(order.status === "Livré" ? "/account" : "/messages")} />
             </Card>
           ))}
         </Page>
