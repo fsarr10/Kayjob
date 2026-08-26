@@ -42,6 +42,20 @@ npm install
 npm run start
 ```
 
+### Préparer une publication mobile
+
+Le projet est configuré pour Expo Application Services avec les profils `development`, `preview` et `production`.
+
+```bash
+cd ~/Bureau/Kayjob/apps/mobile
+npx expo-doctor
+npx expo export --platform ios --clear
+eas build --platform all --profile production
+eas submit --platform all --profile production
+```
+
+Avant la première soumission, générer les assets PNG de store à partir de `apps/mobile/assets/kayjob-logo.svg`, renseigner les identifiants Apple/Google Play dans EAS, et remplacer les providers de paiement de démonstration par leurs credentials sandbox puis production.
+
 ## Vérifier et construire
 
 ```bash

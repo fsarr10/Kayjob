@@ -3,11 +3,13 @@
     "name": "KayJob",
     "slug": "kayjob",
     "version": "0.1.0",
+    "description": "La marketplace sénégalaise des talents étudiants.",
+    "primaryColor": "#0F8F5B",
     "orientation": "portrait",
     "scheme": "kayjob",
     "userInterfaceStyle": "light",
-    "ios": { "supportsTablet": true, "bundleIdentifier": "sn.kayjob.mobile" },
-    "android": { "package": "sn.kayjob.mobile" },
+    "ios": { "supportsTablet": true, "bundleIdentifier": "sn.kayjob.mobile", "buildNumber": "1" },
+    "android": { "package": "sn.kayjob.mobile", "versionCode": 1 },
     "plugins": ["expo-router"]
   }
 }
