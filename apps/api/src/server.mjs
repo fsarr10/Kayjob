@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomInt, randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import { pool } from "./db.mjs";
 import { assertTransition, canDeliverFinal } from "./order-state.mjs";
@@ -17,14 +17,55 @@ const readBody = (req) => new Promise((resolve, reject) => {
 });
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 
-function userId(req) {
+async function requestOtp(body) {
+  const channel = body.phone ? "phone" : body.email ? "email" : null;
+  const destination = String(body.phone || body.email || "").trim().toLowerCase();
+  if (!channel || !destination) throw Object.assign(new Error("phone or email is required"), { statusCode: 422 });
+  const code = String(randomInt(100000, 1000000));
+  await pool.query("INSERT INTO auth_challenges (channel, destination, code_hash, expires_at) VALUES ($1, $2, $3, CURRENT_TIMESTAMP + INTERVAL '10 minutes')", [channel, destination, hash(code)]);
+  return process.env.NODE_ENV === "production" ? { channel, destination, expiresIn: 600 } : { channel, destination, expiresIn: 600, devCode: code };
+}
+
+async function verifyOtp(body) {
+  const destination = String(body.phone || body.email || "").trim().toLowerCase();
+  const code = String(body.code || "");
+  if (!destination || !/^\d{6}$/.test(code)) throw Object.assign(new Error("destination and six digit code are required"), { statusCode: 422 });
+  const db = await pool.connect();
+  try {
+    await db.query("BEGIN");
+    const challenge = await db.query("SELECT id, channel, code_hash FROM auth_challenges WHERE destination = $1 AND consumed_at IS NULL AND expires_at > CURRENT_TIMESTAMP ORDER BY created_at DESC LIMIT 1 FOR UPDATE", [destination]);
+    if (!challenge.rowCount || challenge.rows[0].code_hash !== hash(code)) throw Object.assign(new Error("Invalid or expired OTP"), { statusCode: 401 });
+    await db.query("UPDATE auth_challenges SET consumed_at = CURRENT_TIMESTAMP WHERE id = $1", [challenge.rows[0].id]);
+    const column = challenge.rows[0].channel === "phone" ? "phone" : "email";
+    const existing = await db.query(`SELECT id, full_name, pseudo, verification_status FROM users WHERE ${column} = $1`, [destination]);
+    let user;
+    if (existing.rowCount) user = existing.rows[0];
+    else {
+      const created = await db.query(`INSERT INTO users (full_name, ${column}, role) VALUES ($1, $2, 'both') RETURNING id, full_name, pseudo, verification_status`, [body.fullName || "Nouveau membre", destination]);
+      user = created.rows[0];
+      await db.query("INSERT INTO wallets (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING", [user.id]);
+    }
+    const token = randomUUID() + randomUUID();
+    await db.query("INSERT INTO auth_sessions (user_id, token_hash, device_name, expires_at) VALUES ($1, $2, $3, CURRENT_TIMESTAMP + INTERVAL '30 days')", [user.id, hash(token), body.deviceName || "KayJob mobile"]);
+    await db.query("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1", [user.id]);
+    await db.query("COMMIT");
+    return { token, user };
+  } catch (error) { await db.query("ROLLBACK"); throw error; } finally { db.release(); }
+}
+
+async function authenticatedUserId(req) {
   const value = req.headers["x-user-id"];
-  if (!value || !/^\d+$/.test(value)) { const error = new Error("Authentication required"); error.statusCode = 401; throw error; }
-  return Number(value);
+  if (process.env.NODE_ENV !== "production" && value && /^\d+$/.test(value)) return Number(value);
+  const authorization = String(req.headers.authorization || "");
+  const token = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+  if (!token) throw Object.assign(new Error("Authentication required"), { statusCode: 401 });
+  const result = await pool.query("SELECT user_id FROM auth_sessions WHERE token_hash = $1 AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP", [hash(token)]);
+  if (!result.rowCount) throw Object.assign(new Error("Invalid or expired session"), { statusCode: 401 });
+  return result.rows[0].user_id;
 }
 
 async function createOrder(req, body) {
-  const clientId = userId(req);
+  const clientId = await authenticatedUserId(req);
   if (!Number.isInteger(body.serviceId)) throw Object.assign(new Error("serviceId is required"), { statusCode: 422 });
   const client = await pool.connect();
   try {
@@ -80,24 +121,59 @@ async function route(req, res) {
   const path = url.pathname;
   if (req.method === "OPTIONS") return json(res, 204, {});
   if (req.method === "GET" && path === "/health") return json(res, 200, { ok: true, service: "kayjob-api" });
+  if (req.method === "POST" && path === "/api/auth/request-otp") return json(res, 200, { data: await requestOtp(await readBody(req)) });
+  if (req.method === "POST" && path === "/api/auth/verify-otp") return json(res, 200, { data: await verifyOtp(await readBody(req)) });
   if (req.method === "GET" && path === "/api/services") {
     const result = await pool.query(`SELECT s.id, s.title, s.description, s.delivery_mode, s.starting_price, sp.sama_score, u.full_name, u.pseudo, c.name AS category, ci.name AS city
       FROM services s JOIN student_profiles sp ON sp.id = s.profile_id JOIN users u ON u.id = sp.user_id LEFT JOIN categories c ON c.id = s.category_id LEFT JOIN cities ci ON ci.id = u.city_id
       WHERE s.is_active = true ORDER BY sp.sama_score DESC, s.starting_price ASC`);
     return json(res, 200, { data: result.rows });
   }
+  if (req.method === "GET" && path === "/api/missions") {
+    const result = await pool.query(`SELECT m.id, m.title, m.description, m.delivery_mode, m.budget_max, m.is_open, u.full_name AS client_name, c.name AS category, ci.name AS city
+      FROM missions m JOIN users u ON u.id = m.client_id LEFT JOIN categories c ON c.id = m.category_id LEFT JOIN cities ci ON ci.id = m.city_id WHERE m.is_open = true ORDER BY m.id DESC`);
+    return json(res, 200, { data: result.rows });
+  }
+  if (req.method === "POST" && path === "/api/missions") {
+    const clientId = await authenticatedUserId(req); const body = await readBody(req);
+    if (!body.title || !body.description || !Number.isInteger(body.budgetMax) || !body.deliveryMode) throw Object.assign(new Error("title, description, budgetMax and deliveryMode are required"), { statusCode: 422 });
+    const created = await pool.query(`INSERT INTO missions (client_id, category_id, city_id, title, description, delivery_mode, budget_max) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, title, delivery_mode, budget_max, is_open`, [clientId, body.categoryId || null, body.cityId || null, body.title, body.description, body.deliveryMode, body.budgetMax]);
+    return json(res, 201, { data: created.rows[0] });
+  }
+  const offer = path.match(/^\/api\/missions\/(\d+)\/offers$/);
+  if (req.method === "POST" && offer) {
+    const providerId = await authenticatedUserId(req); const body = await readBody(req);
+    if (!Number.isInteger(body.amountXof) || !Number.isInteger(body.deliveryDays) || !body.message) throw Object.assign(new Error("amountXof, deliveryDays and message are required"), { statusCode: 422 });
+    const created = await pool.query(`INSERT INTO offers (mission_id, provider_id, amount_xof, delivery_days, message) VALUES ($1, $2, $3, $4, $5) RETURNING id, mission_id, amount_xof, delivery_days, status`, [Number(offer[1]), providerId, body.amountXof, body.deliveryDays, body.message]);
+    return json(res, 201, { data: created.rows[0] });
+  }
+  if (req.method === "GET" && path === "/api/me/orders") {
+    const currentUser = await authenticatedUserId(req);
+    const result = await pool.query(`SELECT o.id, o.status, o.amount_total, o.commission_amount, o.amount_net_provider, o.created_at, s.title FROM orders o LEFT JOIN services s ON s.id = o.service_id WHERE o.client_id = $1 OR o.profile_id IN (SELECT id FROM student_profiles WHERE user_id = $1) ORDER BY o.id DESC`, [currentUser]);
+    return json(res, 200, { data: result.rows });
+  }
+  if (req.method === "GET" && path === "/api/me/notifications") {
+    const currentUser = await authenticatedUserId(req); const result = await pool.query("SELECT id, type, title, body, read_at, created_at FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50", [currentUser]);
+    return json(res, 200, { data: result.rows });
+  }
+  const notification = path.match(/^\/api\/notifications\/(\d+)\/read$/);
+  if (req.method === "POST" && notification) {
+    const currentUser = await authenticatedUserId(req); const result = await pool.query("UPDATE notifications SET read_at = CURRENT_TIMESTAMP WHERE id = $1 AND user_id = $2 RETURNING id, read_at", [Number(notification[1]), currentUser]);
+    if (!result.rowCount) return json(res, 404, { error: "Notification not found" });
+    return json(res, 200, { data: result.rows[0] });
+  }
   if (req.method === "POST" && path === "/api/orders") return json(res, 201, { data: await createOrder(req, await readBody(req)) });
-  const webhook = path.match(/^\/api\/webhooks\/payments\/(wave|orange_money|yas)$/);
+  const webhook = path.match(/^\/api\/webhooks\/payments\/(mock|wave|orange_money|yas)$/);
   if (req.method === "POST" && webhook) return json(res, 200, { data: await paymentWebhook(req, webhook[1], await readBody(req)) });
   const payment = path.match(/^\/api\/orders\/(\d+)\/pay$/);
   if (req.method === "POST" && payment) {
-    userId(req);
+    await authenticatedUserId(req);
     if (process.env.NODE_ENV === "production") return json(res, 501, { error: "Payment provider credentials are not configured" });
     return json(res, 200, { data: { provider: "mock", checkoutId: randomUUID(), orderId: Number(payment[1]), next: "POST /api/webhooks/payments/mock" } });
   }
   const finalDelivery = path.match(/^\/api\/orders\/(\d+)\/deliver-final$/);
   if (req.method === "POST" && finalDelivery) {
-    const providerId = userId(req);
+    const providerId = await authenticatedUserId(req);
     const body = await readBody(req);
     if (!body.storageKey || typeof body.storageKey !== "string") throw Object.assign(new Error("Private storage key is required"), { statusCode: 422 });
     const client = await pool.connect();
@@ -115,7 +191,7 @@ async function route(req, res) {
   }
   const validate = path.match(/^\/api\/orders\/(\d+)\/validate$/);
   if (req.method === "POST" && validate) {
-    const clientId = userId(req); const db = await pool.connect();
+    const clientId = await authenticatedUserId(req); const db = await pool.connect();
     try {
       await db.query("BEGIN");
       const result = await db.query(`SELECT o.*, sp.user_id AS provider_id FROM orders o JOIN student_profiles sp ON sp.id = o.profile_id WHERE o.id = $1 AND o.client_id = $2 FOR UPDATE`, [Number(validate[1]), clientId]);
@@ -133,7 +209,7 @@ async function route(req, res) {
   }
   const dispute = path.match(/^\/api\/orders\/(\d+)\/dispute$/);
   if (req.method === "POST" && dispute) {
-    const openedBy = userId(req); const body = await readBody(req);
+    const openedBy = await authenticatedUserId(req); const body = await readBody(req);
     if (!String(body.reason || "").trim()) throw Object.assign(new Error("Dispute reason is required"), { statusCode: 422 });
     const db = await pool.connect();
     try {
@@ -149,17 +225,17 @@ async function route(req, res) {
   }
   const previewDelivery = path.match(/^\/api\/orders\/(\d+)\/deliver-preview$/);
   if (req.method === "POST" && previewDelivery) {
-    userId(req);
+    await authenticatedUserId(req);
     return json(res, 501, { error: "Preview requires the S3 watermarking and streaming worker", next: "Generate delivery_file and preview_session server-side" });
   }
   const previewStream = path.match(/^\/api\/orders\/(\d+)\/preview-stream$/);
   if (req.method === "GET" && previewStream) {
-    userId(req);
+    await authenticatedUserId(req);
     return json(res, 501, { error: "Preview streaming requires the private object storage adapter" });
   }
   const messages = path.match(/^\/api\/orders\/(\d+)\/messages$/);
   if (req.method === "POST" && messages) {
-    const senderId = userId(req); const body = await readBody(req); const safe = redactContactContent(String(body.body || "").trim());
+    const senderId = await authenticatedUserId(req); const body = await readBody(req); const safe = redactContactContent(String(body.body || "").trim());
     if (!safe.body) throw Object.assign(new Error("Message body is required"), { statusCode: 422 });
     const conversation = await pool.query("SELECT id FROM conversations WHERE order_id = $1 LIMIT 1", [Number(messages[1])]);
     if (!conversation.rowCount) throw Object.assign(new Error("Conversation not found"), { statusCode: 404 });

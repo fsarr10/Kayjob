@@ -9,12 +9,20 @@ npm install
 npm run start:api
 ```
 
-Les routes authentifiées de développement utilisent `X-User-Id`. Ce mécanisme est volontairement refusé en production : il doit être remplacé par Neon Auth/Sanctum ou un JWT vérifié avant déploiement public.
+Les routes authentifiées utilisent `Authorization: Bearer <session_token>`. Pour les tests locaux uniquement, `X-User-Id` peut être utilisé quand `NODE_ENV` n'est pas `production`.
 
 ## Routes disponibles
 
 - `GET /health`
+- `POST /api/auth/request-otp`
+- `POST /api/auth/verify-otp`
 - `GET /api/services`
+- `GET /api/missions`
+- `POST /api/missions`
+- `POST /api/missions/:id/offers`
+- `GET /api/me/orders`
+- `GET /api/me/notifications`
+- `POST /api/notifications/:id/read`
 - `POST /api/orders`
 - `POST /api/orders/:id/pay`
 - `POST /api/webhooks/payments/:provider`
@@ -25,4 +33,6 @@ Les routes authentifiées de développement utilisent `X-User-Id`. Ce mécanisme
 - `POST /api/orders/:id/dispute`
 - `POST /api/orders/:id/messages`
 
-Le provider `mock` est réservé au développement. Wave, Orange Money et Yas doivent être implémentés derrière l’adaptateur avant production, avec vérification de signature et credentials sandbox/production officiels.
+Le job de libération automatique se lance avec `npm run api:release-expired` et doit être planifié toutes les quelques minutes par cron/worker.
+
+Le provider `mock` est réservé au développement. Wave, Orange Money et Yas doivent être branchés derrière l’adaptateur avant production, avec vérification de signature et credentials sandbox/production officiels.
