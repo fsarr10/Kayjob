@@ -1,4 +1,5 @@
 import { SlidersHorizontal } from "lucide-react-native";
+import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { AccentCard, Badge, Page, Screen, SearchField, SectionTitle, ServiceCard } from "../../src/components";
@@ -6,6 +7,7 @@ import { services } from "../../src/data";
 import { colors, radii, space } from "../../src/theme";
 
 export default function ServicesScreen() {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [selectedMode, setSelectedMode] = useState("Tous");
   const modes = ["Tous", "À distance", "Sur place", "Les deux"];
@@ -46,7 +48,7 @@ export default function ServicesScreen() {
             <Text style={local.resultHint}>Pertinence d'abord</Text>
           </View>
 
-          {filteredServices.length > 0 ? filteredServices.map((service) => <ServiceCard key={service.id} service={service} />) : (
+          {filteredServices.length > 0 ? filteredServices.map((service) => <ServiceCard key={service.id} service={service} onPress={() => router.push("/portfolio")} />) : (
             <View style={local.emptyState}>
               <Text style={local.emptyTitle}>Aucun talent trouvé</Text>
               <Text style={local.emptyCopy}>Essaie une autre compétence ou retire le filtre de localisation.</Text>

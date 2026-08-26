@@ -1,5 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
+import { useRouter } from "expo-router";
 import { Bell, MapPin, ShieldCheck, Sparkles, TrendingUp } from "lucide-react-native";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { AccentCard, Card, Metric, Page, PrimaryButton, Screen, SearchField, SectionTitle, ServiceCard, styles as shared } from "../src/components";
@@ -8,6 +9,7 @@ import { KayJobLogo } from "../src/Logo";
 import { colors, radii, shadow, space } from "../src/theme";
 
 export default function HomeScreen() {
+  const router = useRouter();
   const topService = services[4] ?? services[0];
 
   return (
@@ -32,7 +34,7 @@ export default function HomeScreen() {
             <Text style={local.heroCopy}>Des compétences vérifiées, partout au Sénégal. Trouve, commande et avance en toute confiance.</Text>
             <SearchField placeholder="Que veux-tu faire aujourd'hui ?" />
             <View style={local.heroActions}>
-              <PrimaryButton label="Explorer les talents" icon="search" />
+              <PrimaryButton label="Explorer les talents" icon="search" onPress={() => router.push("/services")} />
             </View>
           </AccentCard>
 
@@ -43,7 +45,7 @@ export default function HomeScreen() {
           </View>
 
           <SectionTitle title="Talent en avant" action="Voir tout" />
-          <ServiceCard service={topService} />
+          <ServiceCard service={topService} onPress={() => router.push("/portfolio")} />
 
           <View style={local.modeRow}>
             <View style={local.modeCard}>

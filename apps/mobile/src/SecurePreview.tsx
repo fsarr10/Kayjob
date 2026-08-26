@@ -17,6 +17,7 @@ type SecurePreviewProps = {
 export function SecurePreview({ previewToken, kind = "image", watermark = "KayJob · aperçu privé", onSecurityEvent }: SecurePreviewProps) {
   usePreventScreenCapture("kayjob-preview");
   useScreenshotListener(() => onSecurityEvent?.("screenshot"));
+  const hasSession = previewToken.trim().length > 0;
 
   return (
     <View style={styles.frame} accessibilityLabel={`${kind === "video" ? "Vidéo" : "Image"} protégée`}>
@@ -25,7 +26,7 @@ export function SecurePreview({ previewToken, kind = "image", watermark = "KayJo
       <Text style={styles.copy}>Lecture privée via KayJob. Le fichier source reste protégé.</Text>
       <View style={styles.streamRow}>
         <Eye color={colors.green} size={16} />
-        <Text style={styles.streamText}>Session active · {previewToken.slice(0, 6)}•••</Text>
+        <Text style={styles.streamText}>{hasSession ? "Session privée active" : "Session indisponible"}</Text>
       </View>
       <Text style={styles.watermark}>{watermark}</Text>
       {onSecurityEvent ? <View style={styles.notice}><ShieldAlert color={colors.coral} size={15} /><Text style={styles.noticeText}>Les captures sont signalées à KayJob.</Text></View> : null}

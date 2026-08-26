@@ -18,6 +18,7 @@ import {
 } from "lucide-react-native";
 import { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, radii, shadow, space } from "./theme";
 
 export type IconName = "search" | "briefcase" | "orders" | "messages" | "portfolio" | "account" | "admin" | "shield" | "spark" | "bell" | "pay" | "award" | "plus";
@@ -48,7 +49,7 @@ export function Page({ children }: { children: ReactNode }) {
 }
 
 export function Screen({ children }: { children: ReactNode }) {
-  return <View style={styles.screen}>{children}</View>;
+  return <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>{children}</SafeAreaView>;
 }
 
 export function SectionTitle({ title, action }: { title: string; action?: string }) {
@@ -104,9 +105,9 @@ export function Metric({ value, label, tone = "default" }: { value: string; labe
   );
 }
 
-export function PrimaryButton({ label, icon = "search" }: { label: string; icon?: IconName }) {
+export function PrimaryButton({ label, icon = "search", onPress }: { label: string; icon?: IconName; onPress?: () => void }) {
   return (
-    <TouchableOpacity style={[styles.primary, shadow]} activeOpacity={0.86}>
+    <TouchableOpacity accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={[styles.primary, shadow]} activeOpacity={0.86}>
       <Icon name={icon} color="#fff" />
       <Text style={styles.primaryText}>{label}</Text>
       <ArrowRight color="#fff" size={17} strokeWidth={2.4} />
@@ -114,9 +115,9 @@ export function PrimaryButton({ label, icon = "search" }: { label: string; icon?
   );
 }
 
-export function SecondaryButton({ label, icon = "spark" }: { label: string; icon?: IconName }) {
+export function SecondaryButton({ label, icon = "spark", onPress }: { label: string; icon?: IconName; onPress?: () => void }) {
   return (
-    <TouchableOpacity style={styles.secondary} activeOpacity={0.86}>
+    <TouchableOpacity accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={styles.secondary} activeOpacity={0.86}>
       <Icon name={icon} color={colors.greenDark} />
       <Text style={styles.secondaryText}>{label}</Text>
     </TouchableOpacity>
@@ -142,7 +143,7 @@ export function Avatar({ name, size = 48 }: { name: string; size?: number }) {
   );
 }
 
-export function ServiceCard({ service }: { service: { name: string; title: string; city: string; mode: string; price: string; score: number; rating: string; work: string; category: string; skills: string[] } }) {
+export function ServiceCard({ service, onPress }: { service: { name: string; title: string; city: string; mode: string; price: string; score: number; rating: string; work: string; category: string; skills: string[] }; onPress?: () => void }) {
   return (
     <Card>
       <View style={styles.serviceTop}>
@@ -164,8 +165,8 @@ export function ServiceCard({ service }: { service: { name: string; title: strin
       <Text style={styles.meta}>{service.skills.join(" · ")} · {service.work}</Text>
       <View style={styles.priceRow}>
         <Text style={styles.priceText}>{service.price}</Text>
-        <View style={styles.compactButton}>
-          <PrimaryButton label="Commander" icon="pay" />
+          <View style={styles.compactButton}>
+          <PrimaryButton label="Commander" icon="pay" onPress={onPress} />
         </View>
       </View>
     </Card>
