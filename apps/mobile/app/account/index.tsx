@@ -5,9 +5,11 @@ import { AccentCard, Avatar, Badge, Card, Page, PrimaryButton, Screen, SectionTi
 import { cities, services } from "../../src/data";
 import { colors, radii, space } from "../../src/theme";
 import { requestOtp, verifyOtp } from "../../src/api";
+import { useRouter } from "expo-router";
 
 export default function AccountScreen() {
   const student = services[0];
+  const router = useRouter();
   const [destination, setDestination] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
@@ -23,6 +25,7 @@ export default function AccountScreen() {
             <Text style={local.heroTitle}>Un seul compte pour commander et vendre.</Text>
             <Text style={local.heroCopy}>Téléphone, email, ville, vérification étudiant et portfolio public.</Text>
           </AccentCard>
+          <PrimaryButton label="Ouvrir la page de connexion" icon="shield" onPress={() => router.push("/login")} />
 
           <Card>
             <Text style={local.title}>Inscription rapide</Text>

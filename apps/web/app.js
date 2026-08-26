@@ -110,7 +110,8 @@ function setTitle(route) {
     orders: ["Escrow", "Commandes"],
     messages: ["Temps réel", "Messages"],
     portfolio: ["Profil public", "Portfolio"],
-    admin: ["Back-office", "Administration"]
+    admin: ["Back-office", "Administration"],
+    login: ["Sécurité", "Connexion"]
   };
   const [eyebrow, title] = titles[route] || titles.dashboard;
   document.querySelector("#routeEyebrow").textContent = eyebrow;
@@ -121,7 +122,7 @@ function setTitle(route) {
 function render() {
   const route = currentRoute();
   setTitle(route);
-  const pages = { dashboard, discover, missions, orders, messages, portfolio, admin };
+  const pages = { dashboard, discover, missions, orders, messages, portfolio, admin, login };
   view.innerHTML = (pages[route] || dashboard)();
   bindActions();
   const authButton = document.querySelector("#authButton");
@@ -155,6 +156,10 @@ function dashboard() {
 
 function metric(value, label, detail) {
   return `<article class="metric"><strong>${value}</strong><h3>${label}</h3><p class="meta">${detail}</p></article>`;
+}
+
+function login() {
+  return `<section class="split"><div class="panel"><p class="eyebrow">Espace sécurisé</p><h2>Connecte-toi à KayJob</h2><p class="meta">Un code OTP sera envoyé par téléphone ou email.</p><form id="loginForm" class="modal-card" style="width:auto;padding:0;box-shadow:none"><label>Téléphone ou email<input name="destination" required placeholder="+221 77 000 00 00" /></label><label>Code OTP<input name="code" inputmode="numeric" placeholder="Après l’envoi du code" /></label><div class="actions"><button class="secondary" value="request">Recevoir le code</button><button class="primary" value="verify">Se connecter</button></div><p id="loginStatus" class="meta" aria-live="polite"></p></form></div><aside class="panel"><h2>Une seule identité</h2><p class="meta">Commande comme client, propose tes compétences et retrouve ton portfolio avec le même compte.</p><span class="badge">Paiement protégé</span></aside></section>`;
 }
 
 function discover() {
@@ -252,7 +257,7 @@ function openModal(type) {
 }
 
 function bindActions() {
-  document.querySelector("#authButton")?.addEventListener("click", () => openModal("auth"));
+  document.querySelector("#authButton")?.addEventListener("click", () => { location.hash = "login"; });
   document.querySelectorAll("[data-route-to]").forEach((button) => button.addEventListener("click", () => { location.hash = button.dataset.routeTo; }));
   document.querySelectorAll("[data-modal]").forEach((button) => button.addEventListener("click", () => openModal(button.dataset.modal)));
   document.querySelectorAll("[data-order]").forEach((button) => button.addEventListener("click", () => createOrder(button.dataset.order)));
@@ -265,6 +270,29 @@ function bindActions() {
   if (q) ["input", "change"].forEach((eventName) => document.querySelectorAll("#q,#cat,#city,#budget").forEach((field) => field.addEventListener(eventName, filterDiscover)));
   const form = document.querySelector("#messageForm");
   if (form) form.addEventListener("submit", sendMessage);
+  const loginForm = document.querySelector("#loginForm");
+  if (loginForm) loginForm.addEventListener("submit", handleLogin);
+}
+
+async function handleLogin(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = new FormData(form);
+  const destination = String(data.get("destination") || "").trim();
+  const status = document.querySelector("#loginStatus");
+  try {
+    if (event.submitter?.value === "request") {
+      const result = await apiFetch("/api/auth/request-otp", { method: "POST", body: JSON.stringify(destination.includes("@") ? { email: destination } : { phone: destination }) });
+      if (result.devCode) form.querySelector('[name="code"]').value = result.devCode;
+      status.textContent = result.devCode ? `Code de test : ${result.devCode}` : "Code envoyé. Vérifie ton téléphone ou ton email.";
+      return;
+    }
+    const result = await apiFetch("/api/auth/verify-otp", { method: "POST", body: JSON.stringify(destination.includes("@") ? { email: destination, code: String(data.get("code") || "") } : { phone: destination, code: String(data.get("code") || "") }) });
+    sessionStorage.setItem("kayjob.session", result.token);
+    status.textContent = "Connexion réussie.";
+    await syncRemote();
+    location.hash = "dashboard";
+  } catch (error) { status.textContent = error instanceof Error ? error.message : "Connexion impossible"; }
 }
 
 function filterDiscover() {
