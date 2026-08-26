@@ -1,0 +1,10 @@
+{
+  "name": "KayJob",
+  "short_name": "KayJob",
+  "description": "Marketplace des talents étudiants au Sénégal.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fbfcfa",
+  "theme_color": "#137a4b",
+  "icons": [{ "src": "./assets/kayjob-logo.svg", "sizes": "200x200", "type": "image/svg+xml" }]
+}

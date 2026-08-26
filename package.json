@@ -1,0 +1,11 @@
+{
+  "name": "kayjob-site",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Site web KayJob, marketplace nationale des talents étudiants au Sénégal.",
+  "scripts": {
+    "build": "node scripts/build-static.mjs",
+    "start": "npx serve public",
+    "check": "node --check public/app.js"
+  }
+}

@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="KayJob connecte les étudiants prestataires et les clients dans tout le Sénégal." />
+    <title>KayJob - Talents étudiants au Sénégal</title>
+    <link rel="icon" href="./assets/kayjob-logo.svg" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#home"><img src="./assets/kayjob-logo.svg" alt="" /><span>KayJob</span></a>
+      <nav class="nav" aria-label="Navigation principale">
+        <a href="#how">Parcours</a>
+        <a href="#services">Services</a>
+        <a href="#missions">Missions</a>
+        <a href="#orders">Commandes</a>
+        <a href="#admin">Admin</a>
+      </nav>
+      <button class="primary small" id="openSignup">Créer un compte</button>
+    </header>
+
+    <main>
+      <section id="home" class="hero">
+        <img class="hero-bg" src="./assets/hero.svg" alt="Étudiants sénégalais collaborant sur KayJob" />
+        <div class="hero-content">
+          <img class="hero-logo" src="./assets/kayjob-logo.svg" alt="" />
+          <p class="eyebrow">Marketplace nationale</p>
+          <h1>KayJob</h1>
+          <p class="tagline">Ton talent peut devenir ton premier revenu.</p>
+          <div class="hero-actions">
+            <a class="primary" href="#services">Trouver un talent</a>
+            <a class="secondary" href="#missions">Publier une mission</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="metrics">
+        <article><strong id="metricStudents">0</strong><span>prestataires actifs</span></article>
+        <article><strong id="metricRemote">0</strong><span>services à distance</span></article>
+        <article><strong>8-12%</strong><span>commission configurable</span></article>
+        <article><strong>14</strong><span>régions couvertes</span></article>
+      </section>
+
+      <section id="how" class="section">
+        <div class="section-head"><div><p class="eyebrow">Parcours</p><h2>De la première mission au portfolio</h2></div></div>
+        <div class="journey">
+          <article><span>1</span><h3>Profil vérifié</h3><p>Ville, compétences, disponibilité, documents privés et badge public.</p></article>
+          <article><span>2</span><h3>Commande sécurisée</h3><p>Le paiement client est bloqué en séquestre jusqu'à validation.</p></article>
+          <article><span>3</span><h3>Réalisation publiée</h3><p>Images, liens, livrables et avis enrichissent le profil public.</p></article>
+          <article><span>4</span><h3>Opportunité</h3><p>Le portfolio sert de preuve pour stages, emplois et nouveaux clients.</p></article>
+        </div>
+      </section>
+
+      <section id="services" class="section alt">
+        <div class="section-head">
+          <div><p class="eyebrow">Mode Services</p><h2>Rechercher un prestataire</h2></div>
+          <button class="secondary" id="resetFilters">Réinitialiser</button>
+        </div>
+        <div class="filters">
+          <label>Compétence<input id="searchInput" type="search" placeholder="logo, dev web, cours..." /></label>
+          <label>Catégorie<select id="categoryFilter"></select></label>
+          <label>Mode<select id="modeFilter"><option value="all">Tous</option><option value="remote">À distance</option><option value="onsite">Sur place</option><option value="both">Les deux</option></select></label>
+          <label>Ville<select id="cityFilter"></select></label>
+          <label>Budget max<input id="budgetFilter" type="number" min="0" step="1000" placeholder="15000" /></label>
+        </div>
+        <p class="search-note" id="searchNote"></p>
+        <div class="grid" id="serviceGrid"></div>
+      </section>
+
+      <section id="profile" class="section" hidden>
+        <div class="section-head">
+          <div><p class="eyebrow">Portfolio public</p><h2 id="profileName"></h2></div>
+          <button class="secondary" id="closeProfile">Fermer</button>
+        </div>
+        <div class="profile-layout">
+          <aside class="profile-card">
+            <div class="avatar" id="profileAvatar"></div>
+            <h3 id="profilePseudo"></h3>
+            <p id="profileBio"></p>
+            <div class="trust-row" id="profileTrust"></div>
+          </aside>
+          <div>
+            <div class="profile-toolbar"><h3>Réalisations</h3><button class="primary small" id="addPortfolioItem">Ajouter</button></div>
+            <div class="portfolio-grid" id="portfolioGrid"></div>
+            <div class="review-list" id="profileReviews"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="missions" class="section">
+        <div class="section-head">
+          <div><p class="eyebrow">Mode Missions</p><h2>Besoins publiés par les clients</h2></div>
+          <button class="primary" id="publishMission">Publier une mission</button>
+        </div>
+        <div class="mission-board" id="missionBoard"></div>
+      </section>
+
+      <section id="orders" class="section alt">
+        <div class="section-head"><div><p class="eyebrow">Escrow</p><h2>Commande et paiement sécurisé</h2></div></div>
+        <p class="muted" id="selectedOrder"></p>
+        <div class="order-flow" id="orderFlow"></div>
+        <div class="message-panel">
+          <h3>Messagerie intégrée</h3>
+          <div class="messages" id="messages"></div>
+          <form id="messageForm" class="message-form">
+            <input id="messageInput" placeholder="Écrire un message..." />
+            <button class="primary small" type="submit">Envoyer</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="admin" class="section">
+        <div class="section-head"><div><p class="eyebrow">Back-office</p><h2>Suivi national</h2></div></div>
+        <div class="admin-grid" id="adminGrid"></div>
+        <div class="admin-panels">
+          <article><h3>Vérifications</h3><ul id="verificationQueue"></ul></article>
+          <article><h3>Transactions escrow</h3><ul id="paymentQueue"></ul></article>
+          <article><h3>Demande par région</h3><ul id="regionStats"></ul></article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer"><strong>KayJob</strong><span>Marketplace des talents étudiants au Sénégal</span><a href="#home">Retour en haut</a></footer>
+
+    <dialog id="signupDialog">
+      <form method="dialog" class="dialog-card">
+        <h2>Créer un compte KayJob</h2>
+        <label>Téléphone ou email<input placeholder="+221 77 000 00 00" /></label>
+        <label>Ville<select><option>Dakar</option><option>Thiès</option><option>Saint-Louis</option><option>Ziguinchor</option><option>Kaolack</option><option>Touba</option><option>Mbour</option><option>Diourbel</option></select></label>
+        <div class="dialog-actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="confirm">Recevoir OTP</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="portfolioDialog">
+      <form method="dialog" class="dialog-card wide">
+        <img id="portfolioPreview" class="portfolio-preview" alt="" />
+        <h2 id="portfolioTitle"></h2>
+        <p id="portfolioDescription" class="muted"></p>
+        <div class="dialog-actions"><a class="secondary" id="portfolioLink" href="#" target="_blank" rel="noreferrer">Voir le lien</a><button class="primary" value="close">Fermer</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="portfolioFormDialog">
+      <form method="dialog" class="dialog-card" id="portfolioForm">
+        <h2>Nouvelle réalisation</h2>
+        <label>Titre<input id="portfolioFormTitle" placeholder="Ex. Affiche conférence" required /></label>
+        <label>Type<select id="portfolioFormType"><option>Image</option><option>Lien</option></select></label>
+        <label>Lien<input id="portfolioFormUrl" placeholder="https://..." /></label>
+        <label>Description<input id="portfolioFormDescription" placeholder="Résultat livré, contexte client..." required /></label>
+        <div class="dialog-actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="confirm">Ajouter</button></div>
+      </form>
+    </dialog>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

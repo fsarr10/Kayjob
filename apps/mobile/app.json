@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "KayJob",
+    "slug": "kayjob",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/kayjob-logo.svg",
+    "scheme": "kayjob",
+    "userInterfaceStyle": "light",
+    "ios": { "supportsTablet": true, "bundleIdentifier": "sn.kayjob.mobile" },
+    "android": { "package": "sn.kayjob.mobile" },
+    "plugins": ["expo-router"]
+  }
+}

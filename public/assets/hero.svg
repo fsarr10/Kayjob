@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 760" role="img" aria-label="Étudiants sénégalais collaborant">
+  <rect width="1400" height="760" fill="#eef4ef"/>
+  <rect x="0" y="0" width="1400" height="760" fill="#17211d" opacity=".12"/>
+  <rect x="720" y="110" width="470" height="410" rx="24" fill="#fff"/>
+  <rect x="770" y="170" width="250" height="24" rx="12" fill="#16213d"/>
+  <rect x="770" y="226" width="350" height="18" rx="9" fill="#607069"/>
+  <rect x="770" y="270" width="300" height="18" rx="9" fill="#607069"/>
+  <rect x="770" y="334" width="160" height="48" rx="8" fill="#137a4b"/>
+  <circle cx="330" cy="332" r="116" fill="#f4b94a"/>
+  <circle cx="520" cy="310" r="92" fill="#137a4b"/>
+  <circle cx="640" cy="380" r="82" fill="#2864a6"/>
+  <rect x="250" y="452" width="520" height="42" rx="21" fill="#8f6a34"/>
+  <rect x="396" y="384" width="220" height="142" rx="14" fill="#16213d"/>
+  <rect x="424" y="412" width="164" height="86" rx="8" fill="#f7f4ee"/>
+  <path d="M0 590 C240 530 360 640 560 590 S940 540 1400 600 V760 H0Z" fill="#16213d"/>
+</svg>
