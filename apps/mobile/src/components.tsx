@@ -37,13 +37,28 @@ export function PrimaryButton({ label }: { label: string }) {
   );
 }
 
+export function SecondaryButton({ label }: { label: string }) {
+  return (
+    <TouchableOpacity style={styles.secondary}>
+      <Text style={styles.secondaryText}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+export function Badge({ label }: { label: string }) {
+  return <Text style={styles.badge}>{label}</Text>;
+}
+
 export function QuickNav() {
   return (
     <View style={styles.quickNav}>
       <Link href="/services" style={styles.quickLink}>Services</Link>
       <Link href="/missions" style={styles.quickLink}>Missions</Link>
       <Link href="/orders" style={styles.quickLink}>Commandes</Link>
+      <Link href="/messages" style={styles.quickLink}>Messages</Link>
       <Link href="/portfolio" style={styles.quickLink}>Portfolio</Link>
+      <Link href="/account" style={styles.quickLink}>Compte</Link>
+      <Link href="/admin" style={styles.quickLink}>Admin</Link>
     </View>
   );
 }
@@ -59,6 +74,9 @@ export const styles = StyleSheet.create({
   meta: { color: colors.muted, lineHeight: 20 },
   primary: { minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: radii.sm, backgroundColor: colors.green },
   primaryText: { color: "#fff", fontWeight: "900" },
+  secondary: { minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: radii.sm, backgroundColor: "#e3f4ea", borderWidth: 1, borderColor: "#b9dec8" },
+  secondaryText: { color: colors.greenDark, fontWeight: "900" },
+  badge: { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 7, borderRadius: radii.sm, overflow: "hidden", backgroundColor: "#eef6f1", color: colors.greenDark, fontWeight: "900" },
   quickNav: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   quickLink: { minHeight: 36, paddingHorizontal: 12, paddingVertical: 8, borderRadius: radii.sm, overflow: "hidden", color: colors.green, backgroundColor: "#e3f4ea", fontWeight: "900" }
 });

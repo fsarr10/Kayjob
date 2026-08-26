@@ -1,5 +1,5 @@
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { Card, Page, PrimaryButton, SectionTitle, styles as shared } from "../../src/components";
+import { Badge, Card, Page, PrimaryButton, SectionTitle, styles as shared } from "../../src/components";
 import { services } from "../../src/data";
 import { colors, radii } from "../../src/theme";
 
@@ -9,6 +9,7 @@ export default function ServicesScreen() {
       <Page>
         <SectionTitle title="Services" action="National" />
         <TextInput placeholder="Rechercher par compétence" placeholderTextColor="#7b8984" style={local.input} />
+        <Text style={shared.meta}>Les services à distance restent visibles partout au Sénégal. La ville sert surtout aux prestations sur place.</Text>
         {services.map((service) => (
           <Card key={service.id}>
             <View style={local.row}>
@@ -18,8 +19,13 @@ export default function ServicesScreen() {
                 <Text style={shared.meta}>{service.name} · {service.city} · {service.category}</Text>
               </View>
             </View>
+            <View style={local.badges}>
+              <Badge label={service.mode} />
+              <Badge label={service.category} />
+              <Badge label={`${service.rating}/5`} />
+            </View>
             <View style={local.row}><Text style={local.price}>{service.price}</Text><Text style={local.score}>{service.score}/100</Text></View>
-            <Text style={shared.meta}>{service.mode} · {service.work}</Text>
+            <Text style={shared.meta}>{service.skills.join(" · ")} · {service.work}</Text>
             <PrimaryButton label="Commander" />
           </Card>
         ))}
@@ -36,6 +42,7 @@ const local = StyleSheet.create({
   avatarText: { color: colors.green, fontWeight: "900" },
   main: { flex: 1 },
   title: { fontSize: 17, fontWeight: "900", color: colors.ink },
+  badges: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   price: { fontWeight: "900", color: colors.ink },
   score: { color: colors.greenDark, fontWeight: "900" }
 });

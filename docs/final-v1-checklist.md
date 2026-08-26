@@ -12,7 +12,7 @@
 - Ouverture de litige et suivi admin.
 - Espace client/prestataire/notifications.
 - Back-office statistiques, vérifications, paiements et régions.
-- Squelette Expo 54 avec identité KayJob.
-- App mobile structurée avec écrans Accueil, Services, Missions, Commandes et Portfolio.
+- App mobile Expo 54 avec identité KayJob, logo SVG et navigation Expo Router.
+- App mobile structurée avec écrans Accueil, Services, Missions, Commandes, Messages, Portfolio, Compte et Admin.
 - Site public enrichi avec catégories, confiance, modèle économique et accès app web.
 - Schéma SQL pour industrialisation Laravel.

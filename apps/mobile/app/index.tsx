@@ -1,6 +1,6 @@
 import { StatusBar } from "expo-status-bar";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { Card, Metric, Page, PrimaryButton, QuickNav, SectionTitle, styles as shared } from "../src/components";
+import { Badge, Card, Metric, Page, PrimaryButton, QuickNav, SectionTitle, styles as shared } from "../src/components";
 import { services, missions, orders } from "../src/data";
 import { KayJobLogo } from "../src/Logo";
 import { colors, radii } from "../src/theme";
@@ -38,6 +38,10 @@ export default function HomeScreen() {
           <Card key={service.id}>
             <Text style={local.cardTitle}>{service.title}</Text>
             <Text style={shared.meta}>{service.name} · {service.city} · {service.mode}</Text>
+            <View style={local.badges}>
+              <Badge label={service.category} />
+              <Badge label={`${service.rating}/5`} />
+            </View>
             <View style={local.row}><Text style={local.price}>{service.price}</Text><Text style={local.score}>SamaScore {service.score}/100</Text></View>
             <Text style={shared.meta}>{service.work}</Text>
           </Card>
@@ -69,6 +73,7 @@ const local = StyleSheet.create({
   stats: { flexDirection: "row", gap: 10 },
   cardTitle: { fontSize: 17, fontWeight: "900", color: colors.ink },
   row: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
+  badges: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   price: { fontWeight: "900", color: colors.ink },
   score: { color: colors.greenDark, fontWeight: "900" }
 });
