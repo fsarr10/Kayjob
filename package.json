@@ -7,9 +7,10 @@
     "build": "node scripts/build-static.mjs",
     "start": "npx serve public",
     "start:web": "npx serve apps/web",
-    "check": "node --check public/app.js && node --check apps/web/app.js && node --check scripts/neon-check.mjs && node --check scripts/neon-schema.mjs && node --check scripts/neon-tables.mjs",
+    "check": "node --check public/app.js && node --check apps/web/app.js && node --check scripts/neon-check.mjs && node --check scripts/neon-schema.mjs && node --check scripts/neon-migrate.mjs && node --check scripts/neon-tables.mjs",
     "db:check": "node scripts/neon-check.mjs",
     "db:schema": "node scripts/neon-schema.mjs",
+    "db:migrate": "node scripts/neon-migrate.mjs",
     "db:tables": "node scripts/neon-tables.mjs"
   },
   "dependencies": {
