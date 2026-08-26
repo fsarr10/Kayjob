@@ -49,6 +49,10 @@ async function syncRemote() {
     if (Array.isArray(services) && services.length) state.services = services.map((row) => talent(row.id, row.full_name, row.pseudo || "talent", row.city || "Sénégal", row.category || "Compétence", row.title, Number(row.starting_price), row.delivery_mode || "remote", Number(row.sama_score || 0), "./assets/portfolio-web.svg"));
     const missions = await apiFetch("/api/missions");
     if (Array.isArray(missions)) state.missions = missions.map((row) => ({ id: row.id, title: row.title, city: row.city || "Sénégal", category: row.category || "Mission", budget: Number(row.budget_max), mode: row.delivery_mode || "remote", offers: 0 }));
+    if (sessionStorage.getItem("kayjob.session")) {
+      const orders = await apiFetch("/api/me/orders");
+      state.orders = Array.isArray(orders) ? orders.map((row) => ({ id: `KJ-${row.id}`, apiId: row.id, title: row.title, status: row.status, gross: Number(row.amount_total), net: Number(row.amount_net_provider) })) : [];
+    }
     state.remote = true;
     save();
     render();
@@ -120,6 +124,8 @@ function render() {
   const pages = { dashboard, discover, missions, orders, messages, portfolio, admin };
   view.innerHTML = (pages[route] || dashboard)();
   bindActions();
+  const authButton = document.querySelector("#authButton");
+  if (authButton) authButton.textContent = sessionStorage.getItem("kayjob.session") ? "Session active" : "Se connecter";
 }
 
 function dashboard() {
@@ -194,6 +200,7 @@ function orderRow(order) {
 
 function messages() {
   const order = state.orders.find((item) => item.id === state.selectedOrderId) || state.orders[0];
+  if (!order) return `<section class="panel"><h2>Messages</h2><p class="meta">Connecte-toi et ouvre une commande pour démarrer une conversation.</p></section>`;
   state.selectedOrderId = order.id;
   const rows = state.messages.filter((message) => message.orderId === order.id);
   return `
@@ -206,6 +213,7 @@ function messages() {
 
 function portfolio() {
   const profile = state.services[0];
+  if (!profile) return `<section class="panel"><h2>Portfolio</h2><p class="meta">Aucun profil prestataire disponible pour le moment.</p></section>`;
   return `
     <section class="split">
       <aside class="panel"><h2>kayjob.sn/${profile.pseudo}</h2><p>${profile.name} · ${profile.city}</p><span class="badge yellow">SamaScore ${profile.score}/100</span><div class="actions" style="margin-top:14px"><button class="primary" data-modal="work">Ajouter une réalisation</button></div></aside>
@@ -234,6 +242,7 @@ function option(item) {
 
 function openModal(type) {
   const forms = {
+    auth: `<h2>Connexion KayJob</h2><p class="meta">Reçois un code OTP par téléphone ou email.</p><label>Téléphone ou email<input name="destination" required placeholder="+221 77 000 00 00" /></label><label>Code OTP<input name="code" inputmode="numeric" placeholder="À remplir après l'envoi" /></label><div class="actions"><button class="secondary" value="cancel">Annuler</button><button class="secondary" value="auth-request">Recevoir le code</button><button class="primary" value="auth-verify">Se connecter</button></div>`,
     service: `<h2>Nouveau service</h2><label>Titre<input name="title" required /></label><label>Catégorie<select name="category">${categories.map(option).join("")}</select></label><label>Prix<input name="price" type="number" required /></label><div class="actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="service">Publier</button></div>`,
     mission: `<h2>Nouvelle mission</h2><label>Titre<input name="title" required /></label><label>Ville<select name="city">${cities.map(option).join("")}</select></label><label>Budget<input name="budget" type="number" required /></label><div class="actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="mission">Publier</button></div>`,
     work: `<h2>Nouvelle réalisation</h2><label>Titre<input name="title" required /></label><label>Lien<input name="url" placeholder="https://..." /></label><label>Description<textarea name="description" required></textarea></label><div class="actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="work">Ajouter</button></div>`
@@ -243,6 +252,7 @@ function openModal(type) {
 }
 
 function bindActions() {
+  document.querySelector("#authButton")?.addEventListener("click", () => openModal("auth"));
   document.querySelectorAll("[data-route-to]").forEach((button) => button.addEventListener("click", () => { location.hash = button.dataset.routeTo; }));
   document.querySelectorAll("[data-modal]").forEach((button) => button.addEventListener("click", () => openModal(button.dataset.modal)));
   document.querySelectorAll("[data-order]").forEach((button) => button.addEventListener("click", () => createOrder(button.dataset.order)));
@@ -273,6 +283,11 @@ function filterDiscover() {
 
 function createOrder(serviceId) {
   const service = state.services.find((item) => item.id === serviceId);
+  if (apiBase) {
+    if (!sessionStorage.getItem("kayjob.session")) return openModal("auth");
+    apiFetch("/api/orders", { method: "POST", body: JSON.stringify({ serviceId: Number(serviceId), amountTotal: Number(service.price) }) }).then(() => syncRemote()).then(() => { location.hash = "orders"; }).catch((error) => alert(error.message));
+    return;
+  }
   const commission = Math.max(250, Math.round(service.price * .1));
   const order = { id: `ord-${Date.now()}`, serviceId, status: "escrowed", gross: service.price, commission, net: service.price - commission };
   state.orders.unshift(order);
@@ -285,6 +300,10 @@ function createOrder(serviceId) {
 
 function addOffer(id) {
   const mission = state.missions.find((item) => item.id === id);
+  if (apiBase) {
+    if (!sessionStorage.getItem("kayjob.session")) return openModal("auth");
+    return apiFetch(`/api/missions/${Number(id)}/offers`, { method: "POST", body: JSON.stringify({ amountXof: Number(mission.budget), deliveryDays: 3, message: "Je peux réaliser cette mission avec un suivi clair." }) }).then(() => syncRemote()).catch((error) => alert(error.message));
+  }
   mission.offers += 1;
   state.notifications.unshift(`Devis ajouté sur ${mission.title}.`);
   save();
@@ -315,6 +334,15 @@ function sendMessage(event) {
 
 modalForm.addEventListener("submit", (event) => {
   const action = event.submitter?.value;
+  if (action === "auth-request" || action === "auth-verify") {
+    event.preventDefault();
+    const data = new FormData(modalForm);
+    const destination = String(data.get("destination") || "").trim();
+    const code = String(data.get("code") || "").trim();
+    const request = action === "auth-request" ? apiFetch("/api/auth/request-otp", { method: "POST", body: JSON.stringify(destination.includes("@") ? { email: destination } : { phone: destination }) }).then((result) => { if (result.devCode) modalForm.querySelector('[name="code"]').value = result.devCode; alert(result.devCode ? `Code de test : ${result.devCode}` : "Code envoyé."); }) : apiFetch("/api/auth/verify-otp", { method: "POST", body: JSON.stringify(destination.includes("@") ? { email: destination, code } : { phone: destination, code }) }).then((result) => { sessionStorage.setItem("kayjob.session", result.token); modal.close(); return syncRemote(); });
+    request.catch((error) => alert(error.message));
+    return;
+  }
   if (!["service", "mission", "work"].includes(action)) return;
   const data = new FormData(modalForm);
   if (action === "service") {
