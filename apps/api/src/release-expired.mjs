@@ -8,6 +8,7 @@ try {
     WHERE o.status = 'client_review' AND o.review_deadline_at <= CURRENT_TIMESTAMP FOR UPDATE`);
   for (const order of orders.rows) {
     await db.query("UPDATE orders SET status = 'completed_released', released_at = CURRENT_TIMESTAMP WHERE id = $1", [order.id]);
+    await db.query("INSERT INTO wallets (user_id, available_xof) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET available_xof = wallets.available_xof + EXCLUDED.available_xof, updated_at = CURRENT_TIMESTAMP", [order.provider_id, order.amount_net_provider || order.net_amount]);
     await db.query(`INSERT INTO transactions (order_id, user_id, kind, direction, amount_xof, idempotency_key, metadata)
       VALUES ($1, $2, 'release', 'credit', $3, $4, $5::jsonb), ($1, $2, 'commission', 'debit', $6, $7, $8::jsonb)`,
       [order.id, order.provider_id, order.amount_net_provider || order.net_amount, `release:${order.id}`, JSON.stringify({ source: "review_deadline" }), order.commission_amount, `commission:${order.id}`, JSON.stringify({ source: "review_deadline" })]);

@@ -1,11 +1,18 @@
 import { Mail, Phone, ShieldCheck } from "lucide-react-native";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useState } from "react";
 import { AccentCard, Avatar, Badge, Card, Page, PrimaryButton, Screen, SectionTitle, styles as shared } from "../../src/components";
 import { cities, services } from "../../src/data";
 import { colors, radii, space } from "../../src/theme";
+import { requestOtp, verifyOtp } from "../../src/api";
 
 export default function AccountScreen() {
   const student = services[0];
+  const [destination, setDestination] = useState("");
+  const [code, setCode] = useState("");
+  const [sent, setSent] = useState(false);
+  const sendOtp = async () => { try { const result = await requestOtp(destination); setSent(true); if (result.devCode) Alert.alert("Code de test", result.devCode); } catch (error) { Alert.alert("Connexion impossible", error instanceof Error ? error.message : "Réessaie plus tard"); } };
+  const confirmOtp = async () => { try { await verifyOtp(destination, code); Alert.alert("Compte sécurisé", "Tu es maintenant connecté à KayJob."); } catch (error) { Alert.alert("Code invalide", error instanceof Error ? error.message : "Vérifie le code"); } };
 
   return (
     <Screen>
@@ -21,13 +28,13 @@ export default function AccountScreen() {
             <Text style={local.title}>Inscription rapide</Text>
             <View style={local.inputRow}>
               <Phone color={colors.green} size={18} />
-              <TextInput placeholder="+221 77 000 00 00" placeholderTextColor="#7b8984" style={local.input} />
+              <TextInput value={destination} onChangeText={setDestination} placeholder="+221 77 000 00 00" placeholderTextColor="#7b8984" style={local.input} autoCapitalize="none" />
             </View>
             <View style={local.inputRow}>
               <Mail color={colors.green} size={18} />
-              <TextInput placeholder="email@universite.sn" placeholderTextColor="#7b8984" style={local.input} />
+              <TextInput placeholder="email@universite.sn" placeholderTextColor="#7b8984" style={local.input} editable={false} />
             </View>
-            <PrimaryButton label="Recevoir le code OTP" icon="shield" />
+            {!sent ? <PrimaryButton label="Recevoir le code OTP" icon="shield" onPress={sendOtp} /> : <><View style={local.inputRow}><ShieldCheck color={colors.green} size={18} /><TextInput value={code} onChangeText={setCode} placeholder="Code à 6 chiffres" keyboardType="number-pad" style={local.input} /></View><PrimaryButton label="Confirmer la connexion" icon="shield" onPress={confirmOtp} /></>}
           </Card>
 
           <Card>

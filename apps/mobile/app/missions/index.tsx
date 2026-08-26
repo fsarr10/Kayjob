@@ -1,10 +1,14 @@
 import { CalendarClock, MapPin } from "lucide-react-native";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
 import { AccentCard, Badge, Card, Page, PrimaryButton, Screen, SecondaryButton, SectionTitle, styles as shared } from "../../src/components";
-import { missions } from "../../src/data";
+import { missions as demoMissions } from "../../src/data";
+import { loadMissions } from "../../src/live-data";
 import { colors, radii, space } from "../../src/theme";
 
 export default function MissionsScreen() {
+  const [missions, setMissions] = useState(demoMissions);
+  useEffect(() => { loadMissions().then(setMissions).catch(() => undefined); }, []);
   return (
     <Screen>
       <ScrollView showsVerticalScrollIndicator={false}>

@@ -1,15 +1,19 @@
 import { SlidersHorizontal } from "lucide-react-native";
 import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { AccentCard, Badge, Page, Screen, SearchField, SectionTitle, ServiceCard } from "../../src/components";
-import { services } from "../../src/data";
+import { services as demoServices } from "../../src/data";
+import { loadServices } from "../../src/live-data";
 import { colors, radii, space } from "../../src/theme";
 
 export default function ServicesScreen() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [selectedMode, setSelectedMode] = useState("Tous");
+  const [services, setServices] = useState(demoServices);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => { loadServices().then(setServices).catch(() => undefined).finally(() => setLoading(false)); }, []);
   const modes = ["Tous", "À distance", "Sur place", "Les deux"];
   const filteredServices = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -44,7 +48,7 @@ export default function ServicesScreen() {
           </ScrollView>
 
           <View style={local.resultHead}>
-            <Text style={local.resultCount}>{filteredServices.length} talent{filteredServices.length > 1 ? "s" : ""}</Text>
+            <Text style={local.resultCount}>{loading ? "Chargement..." : `${filteredServices.length} talent${filteredServices.length > 1 ? "s" : ""}`}</Text>
             <Text style={local.resultHint}>Pertinence d'abord</Text>
           </View>
 

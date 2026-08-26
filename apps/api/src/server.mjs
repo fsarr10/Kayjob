@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 import { pool } from "./db.mjs";
 import { assertTransition, canDeliverFinal } from "./order-state.mjs";
 import { redactContactContent } from "./message-safety.mjs";
-import { signedDownload, signedUpload, streamObject } from "./storage.mjs";
+import { signedDownload, signedUpload, streamObject, storageConfigured } from "./storage.mjs";
 
 const port = Number(process.env.API_PORT || 4000);
 const json = (res, status, body) => {
@@ -52,6 +52,32 @@ async function verifyOtp(body) {
     await db.query("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1", [user.id]);
     await db.query("COMMIT");
     return { token, user };
+  } catch (error) { await db.query("ROLLBACK"); throw error; } finally { db.release(); }
+}
+
+async function requestWithdrawal2fa(req, withdrawalId) {
+  const userId = await authenticatedUserId(req);
+  const code = String(randomInt(100000, 1000000));
+  const result = await pool.query("SELECT id FROM withdrawal_requests WHERE id = $1 AND user_id = $2 AND status = 'pending_2fa'", [withdrawalId, userId]);
+  if (!result.rowCount) throw Object.assign(new Error("Withdrawal not found"), { statusCode: 404 });
+  await pool.query("INSERT INTO withdrawal_2fa_challenges (user_id, withdrawal_id, code_hash, expires_at) VALUES ($1, $2, $3, CURRENT_TIMESTAMP + INTERVAL '10 minutes')", [userId, withdrawalId, hash(code)]);
+  return process.env.NODE_ENV === "production" ? { withdrawalId, expiresIn: 600 } : { withdrawalId, expiresIn: 600, devCode: code };
+}
+
+async function confirmWithdrawal2fa(req, withdrawalId, body) {
+  const userId = await authenticatedUserId(req);
+  const code = String(body.code || "");
+  if (!/^\d{6}$/.test(code)) throw Object.assign(new Error("A six digit code is required"), { statusCode: 422 });
+  const db = await pool.connect();
+  try {
+    await db.query("BEGIN");
+    const challenge = await db.query("SELECT id, code_hash FROM withdrawal_2fa_challenges WHERE withdrawal_id = $1 AND user_id = $2 AND consumed_at IS NULL AND expires_at > CURRENT_TIMESTAMP ORDER BY created_at DESC LIMIT 1 FOR UPDATE", [withdrawalId, userId]);
+    if (!challenge.rowCount || challenge.rows[0].code_hash !== hash(code)) throw Object.assign(new Error("Invalid or expired 2FA code"), { statusCode: 401 });
+    await db.query("UPDATE withdrawal_2fa_challenges SET consumed_at = CURRENT_TIMESTAMP WHERE id = $1", [challenge.rows[0].id]);
+    const withdrawal = await db.query("UPDATE withdrawal_requests SET status = 'pending_review' WHERE id = $1 AND user_id = $2 AND status = 'pending_2fa' RETURNING id, status, amount_xof", [withdrawalId, userId]);
+    if (!withdrawal.rowCount) throw Object.assign(new Error("Withdrawal is no longer pending"), { statusCode: 409 });
+    await db.query("COMMIT");
+    return withdrawal.rows[0];
   } catch (error) { await db.query("ROLLBACK"); throw error; } finally { db.release(); }
 }
 
@@ -123,6 +149,7 @@ async function route(req, res) {
   const path = url.pathname;
   if (req.method === "OPTIONS") return json(res, 204, {});
   if (req.method === "GET" && path === "/health") return json(res, 200, { ok: true, service: "kayjob-api" });
+  if (req.method === "GET" && path === "/api/storage/status") { await authenticatedUserId(req); return json(res, 200, { data: { provider: "cloudflare-r2", configured: storageConfigured(), bucketPrivate: true, signedUploads: true, signedDownloads: true } }); }
   if (req.method === "POST" && path === "/api/auth/request-otp") return json(res, 200, { data: await requestOtp(await readBody(req)) });
   if (req.method === "POST" && path === "/api/auth/verify-otp") return json(res, 200, { data: await verifyOtp(await readBody(req)) });
   if (req.method === "GET" && path === "/api/services") {
@@ -293,6 +320,10 @@ async function route(req, res) {
     const saved = await pool.query("INSERT INTO withdrawal_requests (user_id, provider, phone, amount_xof) VALUES ($1, $2, $3, $4) RETURNING id, status, amount_xof", [providerId, body.provider, body.phone, body.amountXof]);
     return json(res, 202, { data: saved.rows[0], next: "2FA verification and provider payout review" });
   }
+  const withdrawal2fa = path.match(/^\/api\/providers\/withdrawals\/(\d+)\/2fa$/);
+  if (req.method === "POST" && withdrawal2fa) return json(res, 200, { data: await requestWithdrawal2fa(req, Number(withdrawal2fa[1])) });
+  const withdrawalConfirm = path.match(/^\/api\/providers\/withdrawals\/(\d+)\/confirm$/);
+  if (req.method === "POST" && withdrawalConfirm) return json(res, 200, { data: await confirmWithdrawal2fa(req, Number(withdrawalConfirm[1]), await readBody(req)) });
   const previewDelivery = path.match(/^\/api\/orders\/(\d+)\/deliver-preview$/);
   if (req.method === "POST" && previewDelivery) {
     const providerId = await authenticatedUserId(req); const body = await readBody(req);

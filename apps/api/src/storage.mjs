@@ -16,6 +16,10 @@ function clientConfig() {
   };
 }
 
+export function storageConfigured() {
+  return Boolean(process.env.R2_ACCOUNT_ID && process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY && process.env.R2_BUCKET);
+}
+
 export async function signedUpload(key, contentType, expiresIn = 900) {
   const { client, bucket } = clientConfig();
   return getSignedUrl(client, new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: contentType }), { expiresIn });

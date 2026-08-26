@@ -1,4 +1,5 @@
 const storageKey = "kayjob.webapp.state";
+const apiBase = String(window.KAYJOB_API_URL || "").replace(/\/$/, "");
 const categories = ["Informatique", "Design", "Média", "Éducation", "Digital", "Créatif", "Services physiques"];
 const cities = ["Dakar", "Thiès", "Saint-Louis", "Ziguinchor", "Kaolack", "Touba", "Mbour", "Diourbel"];
 
@@ -30,6 +31,31 @@ let state = load();
 const view = document.querySelector("#view");
 const modal = document.querySelector("#modal");
 const modalForm = document.querySelector("#modalForm");
+
+async function apiFetch(path, options = {}) {
+  const headers = { "content-type": "application/json", ...(options.headers || {}) };
+  const token = sessionStorage.getItem("kayjob.session");
+  if (token) headers.authorization = `Bearer ${token}`;
+  const response = await fetch(`${apiBase}${path}`, { ...options, headers });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error || "API indisponible");
+  return body.data;
+}
+
+async function syncRemote() {
+  if (!apiBase) return;
+  try {
+    const [services, missions] = await Promise.all([apiFetch("/api/services"), apiFetch("/api/missions")]);
+    if (Array.isArray(services) && services.length) state.services = services.map((row) => talent(row.id, row.full_name, row.pseudo || "talent", row.city || "Sénégal", row.category || "Compétence", row.title, Number(row.starting_price), row.delivery_mode || "remote", Number(row.sama_score || 0), "./assets/portfolio-web.svg"));
+    if (Array.isArray(missions)) state.missions = missions.map((row) => ({ id: row.id, title: row.title, city: row.city || "Sénégal", category: row.category || "Mission", budget: Number(row.budget_max), mode: row.delivery_mode || "remote", offers: 0 }));
+    state.remote = true;
+    save();
+    render();
+  } catch (error) {
+    state.remote = false;
+    console.warn("KayJob API offline, mode démo activé", error.message);
+  }
+}
 
 function talent(id, name, pseudo, city, category, title, price, mode, score, image) {
   return {
@@ -63,7 +89,7 @@ function mode(modeValue) {
 }
 
 function orderStatus(status) {
-  return { escrowed: "Paiement bloqué", delivered: "Livré", paid_out: "Payé", disputed: "Litige" }[status] || status;
+  return { awaiting_payment: "Paiement attendu", escrowed: "Paiement bloqué", in_progress: "En cours", preview_delivered: "Aperçu livré", final_delivered: "Livré", client_review: "À valider", completed_released: "Payé", delivered: "Livré", paid_out: "Payé", disputed: "Litige", dispute_opened: "Litige" }[status] || status;
 }
 
 function currentRoute() {
@@ -161,7 +187,7 @@ function orders() {
 
 function orderRow(order) {
   const item = state.services.find((service) => service.id === order.serviceId);
-  return `<article class="list-item"><div><h3>${order.id} · ${item.title}</h3><p class="meta">${money(order.gross)} brut · ${money(order.net)} net · ${orderStatus(order.status)}</p></div><div class="actions"><button class="secondary" data-select-order="${order.id}">Messages</button><button class="primary" data-paid="${order.id}">Valider</button><button class="danger" data-dispute="${order.id}">Litige</button></div></article>`;
+  return `<article class="list-item"><div><h3>${order.id} · ${item?.title || order.title || "Commande KayJob"}</h3><p class="meta">${money(order.gross ?? order.amount_total ?? 0)} · ${orderStatus(order.status)}</p></div><div class="actions"><button class="secondary" data-select-order="${order.id}">Messages</button><button class="primary" data-paid="${order.id}">Valider</button><button class="danger" data-dispute="${order.id}">Litige</button></div></article>`;
 }
 
 function messages() {
@@ -311,3 +337,4 @@ document.querySelector("#resetDemo").addEventListener("click", () => {
 });
 window.addEventListener("hashchange", render);
 render();
+syncRemote();
