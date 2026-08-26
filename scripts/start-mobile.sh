@@ -14,4 +14,5 @@ fi
 
 echo "API mobile: http://${IP}:4000"
 cd "${ROOT_DIR}/apps/mobile"
+printf 'EXPO_PUBLIC_API_URL=http://%s:4000\n' "${IP}" > .env.local
 EXPO_PUBLIC_API_URL="http://${IP}:4000" npx expo start "${MODE}" -c

@@ -7,3 +7,4 @@ npm-debug.log*
 .neon
 .expo/
 .local-logs/
+apps/mobile/.env.local
