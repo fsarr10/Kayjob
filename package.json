@@ -7,6 +7,8 @@
     "build": "node scripts/build-static.mjs",
     "start": "npx serve public",
     "start:web": "npx serve apps/web",
-    "check": "node --check public/app.js && node --check apps/web/app.js"
+    "check": "node --check public/app.js && node --check apps/web/app.js && node --check scripts/neon-check.mjs && node --check scripts/neon-schema.mjs",
+    "db:check": "node scripts/neon-check.mjs",
+    "db:schema": "node scripts/neon-schema.mjs"
   }
 }

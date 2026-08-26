@@ -6,7 +6,8 @@ Marketplace nationale des talents étudiants au Sénégal.
 
 - `public/` : site vitrine produit complet et autonome.
 - `apps/web/` : application web KayJob avec dashboard, recherche, missions, commandes, messages, portfolio et admin.
-- `database/schema.sql` : schéma de base de données MVP.
+- `database/schema.sql` : schéma PostgreSQL MVP compatible Neon.
+- `database/neon-setup.md` : guide de connexion Neon.
 - `docs/` : spécifications, architecture, business model et lancement.
 - `apps/mobile/` : application mobile Expo 54 avec Expo Router.
 
@@ -46,4 +47,13 @@ npm run start
 ```bash
 npm run check
 npm run build
+```
+
+## Base de données Neon
+
+```bash
+cp .env.example .env
+# Ajouter DATABASE_URL depuis Neon dans .env
+npm run db:check
+npm run db:schema
 ```
