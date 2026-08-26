@@ -17,7 +17,7 @@ import {
   UserRound
 } from "lucide-react-native";
 import { ReactNode } from "react";
-import { Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { colors, radii, shadow, space } from "./theme";
 
 export type IconName = "search" | "briefcase" | "orders" | "messages" | "portfolio" | "account" | "admin" | "shield" | "spark" | "bell" | "pay" | "award" | "plus";
@@ -86,11 +86,11 @@ export function AccentCard({ children, icon = "spark" }: { children: ReactNode; 
   );
 }
 
-export function SearchField({ placeholder = "Rechercher..." }: { placeholder?: string }) {
+export function SearchField({ placeholder = "Rechercher...", value, onChangeText }: { placeholder?: string; value?: string; onChangeText?: (value: string) => void }) {
   return (
     <View style={styles.searchField}>
       <Icon name="search" size={18} />
-      <Text style={styles.searchPlaceholder}>{placeholder}</Text>
+      <TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={colors.muted} style={styles.searchInput} returnKeyType="search" />
     </View>
   );
 }
@@ -212,7 +212,7 @@ export const styles = StyleSheet.create({
   accentBand: { position: "absolute", left: 0, right: 0, bottom: 0, height: 7, backgroundColor: colors.yellow },
   accentIcon: { width: 42, height: 42, borderRadius: radii.sm, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.14)" },
   searchField: { minHeight: 52, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, borderRadius: radii.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
-  searchPlaceholder: { color: colors.muted, fontWeight: "700" },
+  searchInput: { flex: 1, minHeight: 48, color: colors.ink, fontWeight: "700" },
   metric: { flex: 1, minHeight: 82, justifyContent: "space-between", padding: space.md, borderRadius: radii.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
   metricGreen: { backgroundColor: colors.mint, borderColor: "#bce6ce" },
   metricBlue: { backgroundColor: colors.blueSoft, borderColor: "#c9d9fb" },
