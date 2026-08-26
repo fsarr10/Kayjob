@@ -17,6 +17,7 @@
         <a href="#services">Services</a>
         <a href="#missions">Missions</a>
         <a href="#orders">Commandes</a>
+        <a href="#workspace">Espace</a>
         <a href="#admin">Admin</a>
       </nav>
       <button class="primary small" id="openSignup">Créer un compte</button>
@@ -57,7 +58,10 @@
       <section id="services" class="section alt">
         <div class="section-head">
           <div><p class="eyebrow">Mode Services</p><h2>Rechercher un prestataire</h2></div>
-          <button class="secondary" id="resetFilters">Réinitialiser</button>
+          <div class="head-actions">
+            <button class="secondary" id="resetFilters">Réinitialiser</button>
+            <button class="primary" id="publishService">Publier un service</button>
+          </div>
         </div>
         <div class="filters">
           <label>Compétence<input id="searchInput" type="search" placeholder="logo, dev web, cours..." /></label>
@@ -102,6 +106,11 @@
         <div class="section-head"><div><p class="eyebrow">Escrow</p><h2>Commande et paiement sécurisé</h2></div></div>
         <p class="muted" id="selectedOrder"></p>
         <div class="order-flow" id="orderFlow"></div>
+        <div class="order-actions">
+          <button class="secondary" id="markDelivered">Marquer livré</button>
+          <button class="primary" id="validateDelivery">Valider et libérer</button>
+          <button class="secondary" id="openDispute">Ouvrir un litige</button>
+        </div>
         <div class="message-panel">
           <h3>Messagerie intégrée</h3>
           <div class="messages" id="messages"></div>
@@ -110,6 +119,18 @@
             <button class="primary small" type="submit">Envoyer</button>
           </form>
         </div>
+      </section>
+
+      <section id="workspace" class="section">
+        <div class="section-head">
+          <div><p class="eyebrow">Application</p><h2>Espaces client, prestataire et notifications</h2></div>
+        </div>
+        <div class="tabs" role="tablist" aria-label="Espaces KayJob">
+          <button class="tab active" data-tab="client">Client</button>
+          <button class="tab" data-tab="student">Prestataire</button>
+          <button class="tab" data-tab="notifications">Notifications</button>
+        </div>
+        <div class="workspace-grid" id="workspaceGrid"></div>
       </section>
 
       <section id="admin" class="section">
@@ -131,6 +152,45 @@
         <label>Téléphone ou email<input placeholder="+221 77 000 00 00" /></label>
         <label>Ville<select><option>Dakar</option><option>Thiès</option><option>Saint-Louis</option><option>Ziguinchor</option><option>Kaolack</option><option>Touba</option><option>Mbour</option><option>Diourbel</option></select></label>
         <div class="dialog-actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="confirm">Recevoir OTP</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="serviceFormDialog">
+      <form method="dialog" class="dialog-card" id="serviceForm">
+        <h2>Nouveau service</h2>
+        <label>Titre<input id="serviceTitle" required placeholder="Ex. Création logo professionnel" /></label>
+        <label>Catégorie<select id="serviceCategory"></select></label>
+        <label>Mode<select id="serviceMode"><option value="remote">À distance</option><option value="onsite">Sur place</option><option value="both">Les deux</option></select></label>
+        <label>Prix de départ<input id="servicePrice" type="number" min="1000" step="500" required placeholder="5000" /></label>
+        <div class="dialog-actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="confirm">Publier</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="missionFormDialog">
+      <form method="dialog" class="dialog-card" id="missionForm">
+        <h2>Nouvelle mission</h2>
+        <label>Titre<input id="missionTitle" required placeholder="Ex. Filmer un événement" /></label>
+        <label>Ville<select id="missionCity"></select></label>
+        <label>Mode<select id="missionMode"><option value="remote">À distance</option><option value="onsite">Sur place</option><option value="both">Les deux</option></select></label>
+        <label>Budget<input id="missionBudget" type="number" min="1000" step="500" required placeholder="10000" /></label>
+        <div class="dialog-actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="confirm">Publier</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="reviewDialog">
+      <form method="dialog" class="dialog-card" id="reviewForm">
+        <h2>Laisser un avis</h2>
+        <label>Note<select id="reviewRating"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></label>
+        <label>Commentaire<input id="reviewComment" required placeholder="Qualité, délai, communication..." /></label>
+        <div class="dialog-actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="confirm">Publier l'avis</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="disputeDialog">
+      <form method="dialog" class="dialog-card" id="disputeForm">
+        <h2>Ouvrir un litige</h2>
+        <label>Motif<input id="disputeReason" required placeholder="Décris le désaccord sur la livraison" /></label>
+        <div class="dialog-actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="confirm">Envoyer admin</button></div>
       </form>
     </dialog>
 
