@@ -3,14 +3,19 @@ import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { Bell, MapPin, ShieldCheck, Sparkles, TrendingUp } from "lucide-react-native";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
 import { AccentCard, Card, Metric, Page, PrimaryButton, Screen, SearchField, SectionTitle, ServiceCard, styles as shared } from "../src/components";
-import { missions, orders, services } from "../src/data";
+import { loadMissions, loadOrders, loadServices } from "../src/live-data";
 import { KayJobLogo } from "../src/Logo";
 import { colors, radii, shadow, space } from "../src/theme";
 
 export default function HomeScreen() {
   const router = useRouter();
-  const topService = services[4] ?? services[0];
+  const [services, setServices] = useState<Awaited<ReturnType<typeof loadServices>>>([]);
+  const [missions, setMissions] = useState<Awaited<ReturnType<typeof loadMissions>>>([]);
+  const [orders, setOrders] = useState<Awaited<ReturnType<typeof loadOrders>>>([]);
+  useEffect(() => { Promise.all([loadServices(), loadMissions(), loadOrders()]).then(([nextServices, nextMissions, nextOrders]) => { setServices(nextServices); setMissions(nextMissions); setOrders(nextOrders); }).catch(() => undefined); }, []);
+  const topService = services[0];
 
   return (
     <Screen>
@@ -45,7 +50,7 @@ export default function HomeScreen() {
           </View>
 
           <SectionTitle title="Talent en avant" action="Voir tout" />
-          <ServiceCard service={topService} onPress={() => router.push("/portfolio")} />
+          {topService ? <ServiceCard service={topService} onPress={() => router.push("/portfolio")} /> : <Text style={shared.meta}>Aucun talent disponible pour le moment.</Text>}
 
           <View style={local.modeRow}>
             <View style={local.modeCard}>

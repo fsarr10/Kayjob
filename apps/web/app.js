@@ -45,8 +45,9 @@ async function apiFetch(path, options = {}) {
 async function syncRemote() {
   if (!apiBase) return;
   try {
-    const [services, missions] = await Promise.all([apiFetch("/api/services"), apiFetch("/api/missions")]);
+    const services = await apiFetch("/api/services");
     if (Array.isArray(services) && services.length) state.services = services.map((row) => talent(row.id, row.full_name, row.pseudo || "talent", row.city || "Sénégal", row.category || "Compétence", row.title, Number(row.starting_price), row.delivery_mode || "remote", Number(row.sama_score || 0), "./assets/portfolio-web.svg"));
+    const missions = await apiFetch("/api/missions");
     if (Array.isArray(missions)) state.missions = missions.map((row) => ({ id: row.id, title: row.title, city: row.city || "Sénégal", category: row.category || "Mission", budget: Number(row.budget_max), mode: row.delivery_mode || "remote", offers: 0 }));
     state.remote = true;
     save();
@@ -70,6 +71,7 @@ function talent(id, name, pseudo, city, category, title, price, mode, score, ima
 
 function load() {
   try {
+    if (apiBase) return { services: [], missions: [], orders: [], messages: [], notifications: [], disputes: [], selectedOrderId: null };
     return JSON.parse(localStorage.getItem(storageKey)) || structuredClone(seed);
   } catch {
     return structuredClone(seed);

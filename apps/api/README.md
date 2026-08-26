@@ -55,4 +55,4 @@ Le modèle cron est aussi versionné dans `deploy/kayjob-release-expired.cron`. 
 
 Le fichier `render.yaml` crée le service API et un Cron Job Render toutes les 5 minutes. Dans Render, choisir **New > Blueprint**, connecter le dépôt GitHub, puis renseigner les variables marquées `sync: false` dans les deux services. Le Cron Job ne nécessite que `DATABASE_URL`; il exécute `npm run api:release-expired` et ne dépend pas du service web.
 
-Le provider `mock` est réservé au développement. Wave, Orange Money et Yas doivent être branchés derrière l’adaptateur avant production, avec vérification de signature et credentials sandbox/production officiels.
+Le provider `mock` a été supprimé. Les tests locaux utilisent les données persistantes de `database/migrations/006_local_test_data.sql`. Wave, Orange Money et Yas doivent être branchés derrière l’adaptateur avec vérification de signature et credentials sandbox/production officiels.

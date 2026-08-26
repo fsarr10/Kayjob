@@ -230,13 +230,12 @@ async function route(req, res) {
     return json(res, 200, { data: result.rows[0] });
   }
   if (req.method === "POST" && path === "/api/orders") return json(res, 201, { data: await createOrder(req, await readBody(req)) });
-  const webhook = path.match(/^\/api\/webhooks\/payments\/(mock|wave|orange_money|yas)$/);
+  const webhook = path.match(/^\/api\/webhooks\/payments\/(wave|orange_money|yas)$/);
   if (req.method === "POST" && webhook) return json(res, 200, { data: await paymentWebhook(req, webhook[1], await readBody(req)) });
   const payment = path.match(/^\/api\/orders\/(\d+)\/pay$/);
   if (req.method === "POST" && payment) {
     await authenticatedUserId(req);
-    if (process.env.NODE_ENV === "production") return json(res, 501, { error: "Payment provider credentials are not configured" });
-    return json(res, 200, { data: { provider: "mock", checkoutId: randomUUID(), orderId: Number(payment[1]), next: "POST /api/webhooks/payments/mock" } });
+    return json(res, 503, { error: "A real payment provider adapter is required. Configure Wave, Orange Money or Yas before paying." });
   }
   const finalDelivery = path.match(/^\/api\/orders\/(\d+)\/deliver-final$/);
   if (req.method === "POST" && finalDelivery) {

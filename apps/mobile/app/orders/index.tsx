@@ -2,14 +2,13 @@ import { CheckCircle2, CircleDollarSign, PackageCheck } from "lucide-react-nativ
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useEffect, useState } from "react";
 import { AccentCard, Badge, Card, Page, PrimaryButton, Screen, SectionTitle, styles as shared } from "../../src/components";
-import { orders as demoOrders } from "../../src/data";
 import { loadOrders } from "../../src/live-data";
 import { colors, radii, space } from "../../src/theme";
 
 const steps = ["Paiement", "Travail", "Livraison", "Validation", "Reversement"];
 
 export default function OrdersScreen() {
-  const [orders, setOrders] = useState(demoOrders);
+  const [orders, setOrders] = useState<Awaited<ReturnType<typeof loadOrders>>>([]);
   useEffect(() => { loadOrders().then(setOrders).catch(() => undefined); }, []);
   return (
     <Screen>
