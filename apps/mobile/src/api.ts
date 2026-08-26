@@ -8,7 +8,7 @@ export function setSessionToken(token: string) { sessionToken = token; }
 export function getSessionToken() { return sessionToken; }
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
-  if (!API_URL) throw new Error("EXPO_PUBLIC_API_URL is not configured");
+  if (!API_URL) throw new Error("API locale non configurée. Lance `npm run start:tunnel` depuis apps/mobile.");
   const headers = new Headers(options.headers);
   headers.set("content-type", "application/json");
   headers.set("x-client", `kayjob-mobile/${Platform.OS}`);
