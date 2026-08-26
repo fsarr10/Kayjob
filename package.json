@@ -7,6 +7,7 @@
     "build": "node scripts/build-static.mjs",
     "start": "npx serve public",
     "start:web": "npx serve apps/web",
+    "start:local": "bash scripts/start-local.sh",
     "start:api": "npm start --prefix apps/api",
     "api:release-expired": "npm run release-expired --prefix apps/api",
     "check": "node --check public/app.js && node --check apps/web/app.js && node --check apps/api/src/server.mjs && node --check apps/api/src/db.mjs && node --check apps/api/src/order-state.mjs && node --check apps/api/src/message-safety.mjs && node --check apps/api/src/release-expired.mjs && node --check scripts/neon-check.mjs && node --check scripts/neon-schema.mjs && node --check scripts/neon-migrate.mjs && node --check scripts/neon-tables.mjs",
