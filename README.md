@@ -10,6 +10,7 @@ Marketplace nationale des talents étudiants au Sénégal.
 - `database/neon-setup.md` : guide de connexion Neon.
 - `docs/` : spécifications, architecture, business model et lancement.
 - `apps/mobile/` : application mobile Expo 54 avec Expo Router.
+- `apps/api/` : API Node.js connectée à Neon, séquestre, transitions de commandes et sécurité des messages.
 
 ## Ouvrir le site
 
@@ -62,6 +63,14 @@ Avant la première soumission, générer les assets PNG de store à partir de `a
 npm run check
 npm run build
 ```
+
+## API backend
+
+```bash
+npm run start:api
+```
+
+Voir [apps/api/README.md](apps/api/README.md) pour les routes et le mécanisme d'authentification local.
 
 ## Base de données Neon
 
