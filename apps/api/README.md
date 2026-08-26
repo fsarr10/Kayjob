@@ -13,6 +13,8 @@ npm run start:api
 
 Les routes authentifiées utilisent `Authorization: Bearer <session_token>`. Pour les tests locaux uniquement, `X-User-Id` peut être utilisé quand `NODE_ENV` n'est pas `production`.
 
+Le serveur autorise les requêtes CORS du site web local et les headers nécessaires à l’OTP et aux sessions Bearer.
+
 ## Routes disponibles
 
 - `GET /health`

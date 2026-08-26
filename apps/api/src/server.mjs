@@ -7,7 +7,14 @@ import { signedDownload, signedUpload, streamObject, storageConfigured } from ".
 
 const port = Number(process.env.PORT || process.env.API_PORT || 4000);
 const json = (res, status, body) => {
-  res.writeHead(status, { "content-type": "application/json; charset=utf-8", "access-control-allow-origin": process.env.CORS_ORIGIN || "*" });
+  res.writeHead(status, {
+    "content-type": "application/json; charset=utf-8",
+    "access-control-allow-origin": process.env.CORS_ORIGIN || "*",
+    "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+    "access-control-allow-headers": "content-type, authorization, x-user-id, x-client, x-provider-signature",
+    "access-control-max-age": "600",
+    "vary": "Origin"
+  });
   res.end(JSON.stringify(body));
 };
 const readBody = (req) => new Promise((resolve, reject) => {
