@@ -13,4 +13,6 @@
 - Espace client/prestataire/notifications.
 - Back-office statistiques, vérifications, paiements et régions.
 - Squelette Expo 54 avec identité KayJob.
+- App mobile structurée avec écrans Accueil, Services, Missions, Commandes et Portfolio.
+- Site public enrichi avec catégories, confiance, modèle économique et accès app web.
 - Schéma SQL pour industrialisation Laravel.

@@ -97,19 +97,20 @@ p { line-height: 1.5; }
 .section-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
 .head-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
 
-.journey,.grid,.admin-grid,.admin-panels,.trust-grid,.workspace-grid { display: grid; gap: 16px; }
+.journey,.grid,.admin-grid,.admin-panels,.trust-grid,.workspace-grid,.category-grid,.business-grid { display: grid; gap: 16px; }
 .journey { grid-template-columns: repeat(4,minmax(0,1fr)); }
 .grid { grid-template-columns: repeat(3,minmax(0,1fr)); margin-top: 20px; }
 .admin-grid { grid-template-columns: repeat(4,minmax(0,1fr)); }
-.admin-panels,.trust-grid,.workspace-grid { grid-template-columns: repeat(3,minmax(0,1fr)); margin-top: 16px; }
+.admin-panels,.trust-grid,.workspace-grid,.business-grid { grid-template-columns: repeat(3,minmax(0,1fr)); margin-top: 16px; }
+.category-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
 
-.journey article,.card,.mission,.admin-tile,.admin-panels article,.profile-card,.message-panel,.review,.workspace-grid article {
+.journey article,.card,.mission,.admin-tile,.admin-panels article,.profile-card,.message-panel,.review,.workspace-grid article,.category-grid article,.business-grid article,.trust-grid article,.app-link-panel {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--soft-shadow);
 }
-.journey article,.admin-tile,.admin-panels article,.profile-card,.message-panel,.review,.workspace-grid article { padding: 20px; }
+.journey article,.admin-tile,.admin-panels article,.profile-card,.message-panel,.review,.workspace-grid article,.category-grid article,.business-grid article,.trust-grid article,.app-link-panel { padding: 20px; }
 .journey article { min-height: 190px; }
 .journey span { display: grid; width: 36px; height: 36px; place-items: center; margin-bottom: 14px; border-radius: 8px; color: var(--navy); background: var(--yellow); font-weight: 900; }
 
@@ -168,6 +169,8 @@ input:hover,select:hover { border-color: #bdc9c3; }
 .tabs { display: inline-flex; gap: 6px; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: var(--soft-shadow); }
 .tab { min-height: 38px; border: 0; border-radius: 6px; padding: 0 13px; color: var(--muted); background: transparent; cursor: pointer; font-weight: 850; }
 .tab.active { color: #fff; background: var(--green); }
+.app-link-panel { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 16px; }
+.business-grid strong { display: block; margin-bottom: 10px; font-size: 30px; color: var(--navy); }
 
 .footer { display: flex; justify-content: space-between; gap: 16px; padding: 24px clamp(16px,4vw,52px); color: #fff; background: var(--navy); }
 dialog { border: 0; border-radius: 8px; padding: 0; box-shadow: 0 24px 80px rgba(0,0,0,.28); }
@@ -179,7 +182,7 @@ dialog::backdrop { background: rgba(6,12,10,.5); backdrop-filter: blur(3px); }
 
 @media (max-width: 1080px) {
   .filters { grid-template-columns: repeat(2,minmax(0,1fr)); }
-  .grid,.portfolio-grid,.workspace-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .grid,.portfolio-grid,.workspace-grid,.category-grid,.business-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .order-flow,.journey,.admin-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .admin-panels,.trust-grid { grid-template-columns: 1fr; }
 }
@@ -192,9 +195,10 @@ dialog::backdrop { background: rgba(6,12,10,.5); backdrop-filter: blur(3px); }
   .hero::after { background: linear-gradient(180deg, rgba(10,18,32,.9), rgba(10,18,32,.48)); }
   .section { padding: 44px 16px; }
   .section-head,.mission,.footer,.profile-toolbar,.head-actions { align-items: stretch; grid-template-columns: 1fr; flex-direction: column; }
-  .filters,.grid,.order-flow,.admin-grid,.portfolio-grid,.metrics,.journey,.trust-grid,.admin-panels,.workspace-grid,.profile-layout { grid-template-columns: 1fr; }
+  .filters,.grid,.order-flow,.admin-grid,.portfolio-grid,.metrics,.journey,.trust-grid,.admin-panels,.workspace-grid,.profile-layout,.category-grid,.business-grid { grid-template-columns: 1fr; }
   .profile-card { position: static; }
   .tabs,.order-actions { display: grid; grid-template-columns: 1fr; }
   .message-form,.card-actions,.portfolio-actions { grid-template-columns: 1fr; }
+  .app-link-panel { align-items: stretch; flex-direction: column; }
   .bubble { max-width: 88%; }
 }

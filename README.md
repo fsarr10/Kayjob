@@ -21,6 +21,22 @@ xdg-open /home/falilou/Bureau/Kayjob/public/index.html
 xdg-open /home/falilou/Bureau/Kayjob/apps/web/index.html
 ```
 
+## Application mobile
+
+Le squelette Expo 54 contient maintenant plusieurs écrans :
+
+- Accueil
+- Services
+- Missions
+- Commandes
+- Portfolio public
+
+```bash
+cd /home/falilou/Bureau/Kayjob/apps/mobile
+npm install
+npm run start
+```
+
 ## Vérifier et construire
 
 ```bash
