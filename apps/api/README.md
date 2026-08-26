@@ -43,6 +43,12 @@ Les routes authentifiées utilisent `Authorization: Bearer <session_token>`. Pou
 - `GET /api/admin/overview`
 - `POST /api/providers/withdraw`
 
-Le job de libération automatique se lance avec `npm run api:release-expired` et doit être planifié toutes les quelques minutes par cron/worker.
+Le job de libération automatique se lance avec `npm run api:release-expired`. Il utilise un verrou advisory PostgreSQL pour empêcher deux exécutions concurrentes. En production VPS, installer la planification toutes les 5 minutes avec :
+
+```bash
+sudo bash deploy/install-release-cron.sh /var/www/kayjob
+```
+
+Le modèle cron est aussi versionné dans `deploy/kayjob-release-expired.cron`. Le serveur doit fournir `DATABASE_URL` via son environnement ou `/var/www/kayjob/.env`.
 
 Le provider `mock` est réservé au développement. Wave, Orange Money et Yas doivent être branchés derrière l’adaptateur avant production, avec vérification de signature et credentials sandbox/production officiels.

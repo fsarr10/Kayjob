@@ -1,0 +1,6 @@
+# KayJob escrow release worker. Install with: crontab deploy/kayjob-release-expired.cron
+# Change the path below to the absolute production deployment directory.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+MAILTO=
+*/5 * * * * cd /var/www/kayjob && /usr/bin/npm run api:release-expired >> /var/log/kayjob/release-expired.log 2>&1

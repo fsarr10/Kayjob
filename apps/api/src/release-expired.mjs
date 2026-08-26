@@ -3,6 +3,13 @@ import { pool } from "./db.mjs";
 const db = await pool.connect();
 try {
   await db.query("BEGIN");
+  const lock = await db.query("SELECT pg_try_advisory_xact_lock(94867582) AS acquired");
+  if (!lock.rows[0].acquired) {
+    await db.query("ROLLBACK");
+    console.log("Another release job is already running.");
+    process.exitCode = 0;
+    process.exit();
+  }
   const orders = await db.query(`SELECT o.id, o.amount_net_provider, o.net_amount, o.commission_amount, sp.user_id AS provider_id
     FROM orders o JOIN student_profiles sp ON sp.id = o.profile_id
     WHERE o.status = 'client_review' AND o.review_deadline_at <= CURRENT_TIMESTAMP FOR UPDATE`);
