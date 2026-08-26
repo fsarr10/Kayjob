@@ -17,6 +17,9 @@ Les routes authentifiées utilisent `Authorization: Bearer <session_token>`. Pou
 - `POST /api/auth/request-otp`
 - `POST /api/auth/verify-otp`
 - `GET /api/services`
+- `GET /api/profiles/:pseudo`
+- `POST /api/me/profile`
+- `POST /api/me/portfolio`
 - `GET /api/missions`
 - `POST /api/missions`
 - `POST /api/missions/:id/offers`
@@ -31,7 +34,10 @@ Les routes authentifiées utilisent `Authorization: Bearer <session_token>`. Pou
 - `POST /api/orders/:id/deliver-final`
 - `POST /api/orders/:id/validate`
 - `POST /api/orders/:id/dispute`
+- `POST /api/orders/:id/review`
 - `POST /api/orders/:id/messages`
+- `GET /api/admin/overview`
+- `POST /api/providers/withdraw`
 
 Le job de libération automatique se lance avec `npm run api:release-expired` et doit être planifié toutes les quelques minutes par cron/worker.
 

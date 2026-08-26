@@ -129,6 +129,36 @@ async function route(req, res) {
       WHERE s.is_active = true ORDER BY sp.sama_score DESC, s.starting_price ASC`);
     return json(res, 200, { data: result.rows });
   }
+  const profile = path.match(/^\/api\/profiles\/([a-z0-9_-]+)$/i);
+  if (req.method === "GET" && profile) {
+    const result = await pool.query(`SELECT u.id, u.full_name, u.pseudo, u.verification_status, ci.name AS city, sp.headline, sp.bio, sp.availability, sp.sama_score
+      FROM users u LEFT JOIN cities ci ON ci.id = u.city_id LEFT JOIN student_profiles sp ON sp.user_id = u.id WHERE lower(u.pseudo) = lower($1)`, [profile[1]]);
+    if (!result.rowCount) return json(res, 404, { error: "Profile not found" });
+    const user = result.rows[0];
+    const [services, portfolio, reviews] = await Promise.all([
+      pool.query("SELECT id, title, description, delivery_mode, starting_price, delivery_days FROM services WHERE profile_id = (SELECT id FROM student_profiles WHERE user_id = $1) AND is_active = true", [user.id]),
+      pool.query("SELECT id, title, description, media_url, external_url, item_type, created_at FROM portfolio_items WHERE profile_id = (SELECT id FROM student_profiles WHERE user_id = $1) ORDER BY created_at DESC", [user.id]),
+      pool.query("SELECT r.rating, r.comment, r.created_at, u.full_name AS reviewer FROM reviews r JOIN users u ON u.id = r.reviewer_id WHERE r.reviewee_id = $1 ORDER BY r.created_at DESC", [user.id])
+    ]);
+    return json(res, 200, { data: { ...user, services: services.rows, portfolio: portfolio.rows, reviews: reviews.rows } });
+  }
+  if (req.method === "POST" && path === "/api/me/portfolio") {
+    const currentUser = await authenticatedUserId(req); const body = await readBody(req);
+    if (!body.title || !body.itemType) throw Object.assign(new Error("title and itemType are required"), { statusCode: 422 });
+    const saved = await pool.query(`INSERT INTO portfolio_items (profile_id, title, description, media_url, external_url, item_type)
+      SELECT id, $2, $3, $4, $5, $6 FROM student_profiles WHERE user_id = $1 RETURNING id, title, description, media_url, external_url, item_type`, [currentUser, body.title, body.description || null, body.mediaUrl || null, body.externalUrl || null, body.itemType]);
+    if (!saved.rowCount) return json(res, 409, { error: "Student profile required" });
+    return json(res, 201, { data: saved.rows[0] });
+  }
+  if (req.method === "POST" && path === "/api/me/profile") {
+    const currentUser = await authenticatedUserId(req); const body = await readBody(req);
+    if (!body.headline || !body.bio) throw Object.assign(new Error("headline and bio are required"), { statusCode: 422 });
+    const saved = await pool.query(`INSERT INTO student_profiles (user_id, headline, bio, availability)
+      VALUES ($1, $2, $3, $4) ON CONFLICT (user_id) DO UPDATE SET headline = EXCLUDED.headline, bio = EXCLUDED.bio, availability = EXCLUDED.availability
+      RETURNING id, user_id, headline, bio, availability, sama_score`, [currentUser, body.headline, body.bio, body.availability || null]);
+    await pool.query("UPDATE users SET can_sell = true, role = CASE WHEN role = 'client' THEN 'both' ELSE role END WHERE id = $1", [currentUser]);
+    return json(res, 200, { data: saved.rows[0] });
+  }
   if (req.method === "GET" && path === "/api/missions") {
     const result = await pool.query(`SELECT m.id, m.title, m.description, m.delivery_mode, m.budget_max, m.is_open, u.full_name AS client_name, c.name AS category, ci.name AS city
       FROM missions m JOIN users u ON u.id = m.client_id LEFT JOIN categories c ON c.id = m.category_id LEFT JOIN cities ci ON ci.id = m.city_id WHERE m.is_open = true ORDER BY m.id DESC`);
@@ -222,6 +252,36 @@ async function route(req, res) {
       await db.query("COMMIT");
       return json(res, 201, { data: saved.rows[0] });
     } catch (error) { await db.query("ROLLBACK"); throw error; } finally { db.release(); }
+  }
+  const review = path.match(/^\/api\/orders\/(\d+)\/review$/);
+  if (req.method === "POST" && review) {
+    const reviewerId = await authenticatedUserId(req); const body = await readBody(req);
+    if (!Number.isInteger(body.rating) || body.rating < 1 || body.rating > 5) throw Object.assign(new Error("rating must be between 1 and 5"), { statusCode: 422 });
+    const saved = await pool.query(`INSERT INTO reviews (order_id, reviewer_id, reviewee_id, rating, comment)
+      SELECT o.id, $2, sp.user_id, $3, $4 FROM orders o JOIN student_profiles sp ON sp.id = o.profile_id
+      WHERE o.id = $1 AND o.client_id = $2 AND o.status = 'completed_released' RETURNING id, rating, comment`, [Number(review[1]), reviewerId, body.rating, body.comment || null]);
+    if (!saved.rowCount) return json(res, 409, { error: "Only the client of a released order can review" });
+    return json(res, 201, { data: saved.rows[0] });
+  }
+  if (req.method === "GET" && path === "/api/admin/overview") {
+    const adminId = await authenticatedUserId(req);
+    const admin = await pool.query("SELECT role FROM users WHERE id = $1 AND is_active = true", [adminId]);
+    if (admin.rows[0]?.role !== "admin") return json(res, 403, { error: "Admin role required" });
+    const [users, orders, disputes, volume] = await Promise.all([
+      pool.query("SELECT count(*)::int AS count FROM users"),
+      pool.query("SELECT status, count(*)::int AS count FROM orders GROUP BY status ORDER BY status"),
+      pool.query("SELECT count(*)::int AS count FROM disputes WHERE status = 'open'"),
+      pool.query("SELECT COALESCE(sum(amount_xof), 0)::int AS total_xof FROM transactions WHERE kind = 'hold'")
+    ]);
+    return json(res, 200, { data: { users: users.rows[0].count, orders: orders.rows, openDisputes: disputes.rows[0].count, heldVolumeXof: volume.rows[0].total_xof } });
+  }
+  if (req.method === "POST" && path === "/api/providers/withdraw") {
+    const providerId = await authenticatedUserId(req); const body = await readBody(req);
+    if (!body.provider || !body.phone || !Number.isInteger(body.amountXof) || body.amountXof <= 0) throw Object.assign(new Error("provider, phone and positive amountXof are required"), { statusCode: 422 });
+    const wallet = await pool.query("SELECT available_xof FROM wallets WHERE user_id = $1", [providerId]);
+    if (!wallet.rowCount || wallet.rows[0].available_xof < body.amountXof) return json(res, 409, { error: "Insufficient available balance" });
+    const saved = await pool.query("INSERT INTO withdrawal_requests (user_id, provider, phone, amount_xof) VALUES ($1, $2, $3, $4) RETURNING id, status, amount_xof", [providerId, body.provider, body.phone, body.amountXof]);
+    return json(res, 202, { data: saved.rows[0], next: "2FA verification and provider payout review" });
   }
   const previewDelivery = path.match(/^\/api\/orders\/(\d+)\/deliver-preview$/);
   if (req.method === "POST" && previewDelivery) {
