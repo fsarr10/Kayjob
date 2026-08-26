@@ -1,0 +1,44 @@
+services:
+  - type: web
+    name: kayjob-api
+    runtime: node
+    region: frankfurt
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm run start:api
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        value: kayjob-private
+      - key: CORS_ORIGIN
+        sync: false
+      - key: WAVE_WEBHOOK_SECRET
+        sync: false
+      - key: ORANGE_MONEY_WEBHOOK_SECRET
+        sync: false
+      - key: YAS_WEBHOOK_SECRET
+        sync: false
+
+  - type: cron
+    name: kayjob-release-expired
+    runtime: node
+    region: frankfurt
+    plan: starter
+    schedule: "*/5 * * * *"
+    buildCommand: npm install
+    startCommand: npm run api:release-expired
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false

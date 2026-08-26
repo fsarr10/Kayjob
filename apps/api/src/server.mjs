@@ -5,7 +5,7 @@ import { assertTransition, canDeliverFinal } from "./order-state.mjs";
 import { redactContactContent } from "./message-safety.mjs";
 import { signedDownload, signedUpload, streamObject, storageConfigured } from "./storage.mjs";
 
-const port = Number(process.env.API_PORT || 4000);
+const port = Number(process.env.PORT || process.env.API_PORT || 4000);
 const json = (res, status, body) => {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8", "access-control-allow-origin": process.env.CORS_ORIGIN || "*" });
   res.end(JSON.stringify(body));

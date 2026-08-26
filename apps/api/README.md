@@ -51,4 +51,8 @@ sudo bash deploy/install-release-cron.sh /var/www/kayjob
 
 Le modèle cron est aussi versionné dans `deploy/kayjob-release-expired.cron`. Le serveur doit fournir `DATABASE_URL` via son environnement ou `/var/www/kayjob/.env`.
 
+## Déploiement Render
+
+Le fichier `render.yaml` crée le service API et un Cron Job Render toutes les 5 minutes. Dans Render, choisir **New > Blueprint**, connecter le dépôt GitHub, puis renseigner les variables marquées `sync: false` dans les deux services. Le Cron Job ne nécessite que `DATABASE_URL`; il exécute `npm run api:release-expired` et ne dépend pas du service web.
+
 Le provider `mock` est réservé au développement. Wave, Orange Money et Yas doivent être branchés derrière l’adaptateur avant production, avec vérification de signature et credentials sandbox/production officiels.
