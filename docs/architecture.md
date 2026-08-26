@@ -6,7 +6,9 @@
 - Temps réel : WebSockets/Soketi.
 - Fichiers : stockage S3-compatible.
 - Paiements : interface `PaymentProvider` pour Wave, Orange Money, Free Money et carte.
-- Base de données : Neon avec connexion PostgreSQL SSL via `DATABASE_URL`.
+- Base de données : Neon avec connexion PostgreSQL SSL. L'application utilise `DATABASE_URL` pooled, les migrations utilisent `DATABASE_URL_UNPOOLED`.
+- Auth : Neon Auth via `NEON_AUTH_BASE_URL`.
+- Agent tooling : Neon MCP projet configuré pour Codex et agent-skills `neon` / `neon-postgres` installés.
 
 Le prototype actuel est statique pour valider le produit avant l'industrialisation backend.
 

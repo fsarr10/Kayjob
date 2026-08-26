@@ -56,4 +56,7 @@ cp .env.example .env
 # Ajouter DATABASE_URL depuis Neon dans .env
 npm run db:check
 npm run db:schema
+npm run db:tables
 ```
+
+Le workspace est relié au projet Neon `KayJob` (`green-smoke-94867582`) et le MCP Neon est configuré pour Codex dans `.codex/config.toml`.

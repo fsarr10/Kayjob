@@ -11,10 +11,6 @@ function loadLocalEnv() {
   }
 }
 
-loadLocalEnv();
-
-const databaseUrl = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
-
 function psqlUrl(url) {
   const parsed = new URL(url);
   parsed.searchParams.delete("channel_binding");
@@ -25,24 +21,34 @@ function psqlUrl(url) {
   return parsed.toString();
 }
 
+loadLocalEnv();
+
+const databaseUrl = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
+
 if (!databaseUrl) {
-  console.error("DATABASE_URL_UNPOOLED est manquant. Copie .env.example en .env puis ajoute l'URL Neon directe.");
+  console.error("DATABASE_URL_UNPOOLED ou DATABASE_URL est manquant.");
   process.exit(1);
 }
 
 const result = spawnSync(
   "psql",
-  [psqlUrl(databaseUrl), "-v", "ON_ERROR_STOP=1", "-f", "database/schema.sql"],
+  [
+    psqlUrl(databaseUrl),
+    "-v",
+    "ON_ERROR_STOP=1",
+    "-c",
+    "select table_name from information_schema.tables where table_schema = 'public' order by table_name;"
+  ],
   { encoding: "utf8", stdio: "pipe" }
 );
 
 if (result.error?.code === "ENOENT") {
-  console.error("psql n'est pas installé. Installe le client PostgreSQL pour appliquer le schéma Neon.");
+  console.error("psql n'est pas installé.");
   process.exit(1);
 }
 
 if (result.status !== 0) {
-  console.error(result.stderr || result.stdout || "Application du schéma Neon échouée.");
+  console.error(result.stderr || result.stdout || "Lecture des tables Neon échouée.");
   process.exit(result.status ?? 1);
 }
 

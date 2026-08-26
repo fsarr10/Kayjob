@@ -7,7 +7,9 @@ KayJob utilise Neon comme base PostgreSQL managée.
 1. Crée un projet Neon.
 2. Copie la chaîne de connexion PostgreSQL avec `sslmode=require`.
 3. Crée un fichier `.env` à partir de `.env.example`.
-4. Renseigne `DATABASE_URL`.
+4. Renseigne `DATABASE_URL`, `DATABASE_URL_POOLED`, `DATABASE_URL_UNPOOLED` et `NEON_AUTH_BASE_URL`.
+
+Utilise l'URL pooled pour l'application et l'URL directe pour les migrations.
 
 Exemple :
 
@@ -28,6 +30,18 @@ npm run db:check
 ```bash
 npm run db:schema
 ```
+
+## Vérifier les tables
+
+```bash
+npm run db:tables
+```
+
+## Services Neon utilisés
+
+- Lakebase Postgres : données KayJob, commandes, escrow, messages, portfolio, avis et admin.
+- Neon Auth : base d'authentification de l'application via `NEON_AUTH_BASE_URL`.
+- Neon MCP : configuré pour Codex sur le projet `green-smoke-94867582`.
 
 ## Laravel
 
