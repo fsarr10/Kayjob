@@ -565,6 +565,11 @@ async function sendMessage(event) {
 
 modalForm.addEventListener("submit", (event) => {
   const action = event.submitter?.value;
+  if (action === "cancel") {
+    event.preventDefault();
+    modal.close();
+    return;
+  }
   if (action === "auth-request" || action === "auth-verify") {
     event.preventDefault();
     const data = new FormData(modalForm);
