@@ -118,9 +118,9 @@ export const adminStats = [
 ];
 
 export const verificationQueue = [
-  "Carte étudiant UCAD - Awa Diop",
+  "Pièce d’identité - Awa Diop",
   "Pièce identité - Cheikh Bâ",
-  "Email universitaire - Fatou Ndiaye"
+  "Email de contact - Fatou Ndiaye"
 ];
 
 export const portfolio = [

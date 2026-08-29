@@ -1,6 +1,6 @@
 # KayJob
 
-Marketplace nationale des talents étudiants au Sénégal.
+Marketplace nationale des talents, services et missions au Sénégal.
 
 ## Contenu
 

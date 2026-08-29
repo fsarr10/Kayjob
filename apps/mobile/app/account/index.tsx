@@ -23,7 +23,7 @@ export default function AccountScreen() {
           <SectionTitle title="Compte" action="Sécurisé" />
           <AccentCard icon="account">
             <Text style={local.heroTitle}>Un seul compte pour commander et vendre.</Text>
-            <Text style={local.heroCopy}>Téléphone, email, ville, vérification étudiant et portfolio public.</Text>
+            <Text style={local.heroCopy}>Téléphone, email, ville, profil vérifié et portfolio public.</Text>
           </AccentCard>
           <PrimaryButton label="Ouvrir la page de connexion" icon="shield" onPress={() => router.push("/login")} />
 
@@ -35,7 +35,7 @@ export default function AccountScreen() {
             </View>
             <View style={local.inputRow}>
               <Mail color={colors.green} size={18} />
-              <TextInput placeholder="email@universite.sn" placeholderTextColor="#7b8984" style={local.input} editable={false} />
+              <TextInput placeholder="email@exemple.com" placeholderTextColor="#7b8984" style={local.input} editable={false} />
             </View>
             {!sent ? <PrimaryButton label="Recevoir le code OTP" icon="shield" onPress={sendOtp} /> : <><View style={local.inputRow}><ShieldCheck color={colors.green} size={18} /><TextInput value={code} onChangeText={setCode} placeholder="Code à 6 chiffres" keyboardType="number-pad" style={local.input} /></View><PrimaryButton label="Confirmer la connexion" icon="shield" onPress={confirmOtp} /></>}
           </Card>

@@ -27,7 +27,7 @@ export default function HomeScreen() {
               <KayJobLogo />
               <View>
                 <Text style={local.brand}>KayJob</Text>
-                <Text style={local.subtitle}>Talents étudiants au Sénégal</Text>
+                <Text style={local.subtitle}>Talents & services au Sénégal</Text>
               </View>
             </View>
             <View style={local.headerActions}>

@@ -17,7 +17,7 @@ const demoProfiles = [
 const seed = {
   services: demoProfiles.map((profile) => talent(profile.id, profile.name, profile.pseudo, profile.city, profile.category, profile.title, profile.price, profile.mode, profile.score, profile.image)),
   missions: [
-    { id: "mis-1", title: "Filmer une cérémonie universitaire", city: "Kaolack", category: "Média", budget: 18000, mode: "onsite", offers: 4 },
+    { id: "mis-1", title: "Filmer une cérémonie locale", city: "Kaolack", category: "Média", budget: 18000, mode: "onsite", offers: 4 },
     { id: "mis-2", title: "Créer une affiche de conférence", city: "Touba", category: "Design", budget: 6000, mode: "remote", offers: 9 },
     { id: "mis-3", title: "Corriger un mémoire de licence", city: "Dakar", category: "Éducation", budget: 10000, mode: "remote", offers: 6 },
     { id: "mis-4", title: "Créer des storys pour lancement produit", city: "Thiès", category: "Digital", budget: 8000, mode: "remote", offers: 3 },
@@ -40,7 +40,7 @@ const seed = {
   notifications: [
     "Paiement escrow confirmé.",
     "Nouvelle proposition reçue sur une mission Design.",
-    "Document étudiant à valider.",
+    "Document de profil à valider.",
     "Nouvelle commande validée pour un profil média.",
     "Un litige a été signalé en attente de traitement."
   ],
@@ -267,7 +267,7 @@ function admin() {
       ${metric(state.disputes.length, "Litiges", "file admin")}
     </section>
     <section class="grid three" style="margin-top:16px">
-      <article class="panel"><h2>Vérifications</h2><p class="meta">Carte étudiant, téléphone et email universitaire.</p></article>
+      <article class="panel"><h2>Vérifications</h2><p class="meta">Pièce d’identité, téléphone et email de contact.</p></article>
       <article class="panel"><h2>Paiements</h2><p class="meta">SenePay, Wave, Orange Money, carte.</p></article>
       <article class="panel"><h2>Régions</h2><p class="meta">Dakar, Thiès, Saint-Louis, Ziguinchor, Kaolack.</p></article>
     </section>`;

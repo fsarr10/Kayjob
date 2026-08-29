@@ -1,7 +1,7 @@
 {
   "name": "KayJob",
   "short_name": "KayJob",
-  "description": "Marketplace des talents étudiants au Sénégal.",
+  "description": "Marketplace des talents, services et missions au Sénégal.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
