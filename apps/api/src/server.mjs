@@ -40,6 +40,26 @@ const readBody = (req) => new Promise((resolve, reject) => {
 });
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const safeFileName = (value) => String(value || "file").replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 100);
+const cleanText = (value, max = 180) => String(value || "").trim().slice(0, max);
+
+function cleanOptionalUrl(value) {
+  const input = cleanText(value, 700);
+  if (!input) return null;
+  try {
+    const url = new URL(input);
+    if (!["http:", "https:"].includes(url.protocol)) throw new Error("Unsupported URL");
+    return url.toString();
+  } catch {
+    throw Object.assign(new Error("URL invalide"), { statusCode: 422 });
+  }
+}
+
+function cleanPseudo(value) {
+  const pseudo = cleanText(value, 80).toLowerCase().replace(/[^a-z0-9_-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+  if (!pseudo) return null;
+  if (pseudo.length < 3) throw Object.assign(new Error("Le pseudo doit contenir au moins 3 caractères."), { statusCode: 422 });
+  return pseudo;
+}
 
 function passwordHash(value) {
   const salt = randomBytes(16).toString("hex");
@@ -208,6 +228,69 @@ async function authenticatedUser(req) {
   return result.rows[0];
 }
 
+async function resolveCityId(db, cityName) {
+  const city = cleanText(cityName, 120);
+  if (!city) return null;
+  const existing = await db.query("SELECT id FROM cities WHERE lower(name) = lower($1) ORDER BY id LIMIT 1", [city]);
+  if (existing.rowCount) return existing.rows[0].id;
+  const created = await db.query("INSERT INTO cities (name) VALUES ($1) RETURNING id", [city]);
+  return created.rows[0].id;
+}
+
+async function getAccount(userId) {
+  const result = await pool.query(`SELECT u.id, u.full_name, u.pseudo, u.email, u.phone, u.avatar_url, u.can_sell, u.verification_status, u.role, ci.name AS city,
+      sp.id AS profile_id, sp.headline, sp.bio, sp.availability, sp.sama_score
+    FROM users u LEFT JOIN cities ci ON ci.id = u.city_id LEFT JOIN student_profiles sp ON sp.user_id = u.id
+    WHERE u.id = $1`, [userId]);
+  if (!result.rowCount) throw Object.assign(new Error("Account not found"), { statusCode: 404 });
+  return result.rows[0];
+}
+
+async function updateAccount(req, body) {
+  const userId = await authenticatedUserId(req);
+  const db = await pool.connect();
+  try {
+    await db.query("BEGIN");
+    const fullName = cleanText(body.fullName, 160);
+    const pseudo = cleanPseudo(body.pseudo);
+    const avatarUrl = cleanOptionalUrl(body.avatarUrl);
+    const cityId = await resolveCityId(db, body.city);
+    await db.query(`UPDATE users SET
+      full_name = COALESCE(NULLIF($2, ''), full_name),
+      pseudo = COALESCE($3, pseudo),
+      avatar_url = $4,
+      city_id = COALESCE($5, city_id)
+      WHERE id = $1`, [userId, fullName, pseudo, avatarUrl, cityId]);
+
+    const headline = cleanText(body.headline, 180);
+    const bio = cleanText(body.bio, 2000);
+    const availability = cleanText(body.availability, 120);
+    if (headline || bio || availability) {
+      await db.query(`INSERT INTO student_profiles (user_id, headline, bio, availability)
+        VALUES ($1, COALESCE(NULLIF($2, ''), 'Profil KayJob'), COALESCE(NULLIF($3, ''), 'Disponible sur KayJob.'), NULLIF($4, ''))
+        ON CONFLICT (user_id) DO UPDATE SET
+          headline = COALESCE(NULLIF(EXCLUDED.headline, ''), student_profiles.headline),
+          bio = COALESCE(NULLIF(EXCLUDED.bio, ''), student_profiles.bio),
+          availability = COALESCE(EXCLUDED.availability, student_profiles.availability)`,
+        [userId, headline, bio, availability]);
+      await db.query("UPDATE users SET can_sell = true, role = CASE WHEN role = 'client' THEN 'both' ELSE role END WHERE id = $1", [userId]);
+    }
+
+    const account = await db.query(`SELECT u.id, u.full_name, u.pseudo, u.email, u.phone, u.avatar_url, u.can_sell, u.verification_status, u.role, ci.name AS city,
+        sp.id AS profile_id, sp.headline, sp.bio, sp.availability, sp.sama_score
+      FROM users u LEFT JOIN cities ci ON ci.id = u.city_id LEFT JOIN student_profiles sp ON sp.user_id = u.id
+      WHERE u.id = $1`, [userId]);
+    await db.query("COMMIT");
+    return account.rows[0];
+  } catch (error) {
+    await db.query("ROLLBACK");
+    if (error?.code === "23505") throw Object.assign(new Error("Ce pseudo est déjà utilisé."), { statusCode: 409 });
+    throw error;
+  } finally {
+    db.release();
+  }
+}
+
 async function requireAdmin(req) {
   const user = await authenticatedUser(req);
   if (user.role !== "admin") throw Object.assign(new Error("Admin role required"), { statusCode: 403 });
@@ -364,6 +447,8 @@ export async function route(req, res) {
   if (req.method === "POST" && path === "/api/auth/login") return json(res, 200, { data: await login(await readBody(req)) });
   if (req.method === "POST" && path === "/api/auth/request-otp") return json(res, 200, { data: await requestOtp(await readBody(req)) });
   if (req.method === "POST" && path === "/api/auth/verify-otp") return json(res, 200, { data: await verifyOtp(await readBody(req)) });
+  if (req.method === "GET" && path === "/api/me/account") return json(res, 200, { data: await getAccount(await authenticatedUserId(req)) });
+  if (req.method === "PATCH" && path === "/api/me/account") return json(res, 200, { data: await updateAccount(req, await readBody(req)) });
   if (req.method === "GET" && path === "/api/services") {
     const result = await pool.query(`SELECT s.id, s.title, s.description, s.delivery_mode, s.starting_price, sp.sama_score, u.id AS user_id, u.full_name, u.pseudo, u.avatar_url, u.verification_status, c.name AS category, ci.name AS city, COALESCE(portfolio.items, '[]'::jsonb) AS portfolio
       FROM services s JOIN student_profiles sp ON sp.id = s.profile_id JOIN users u ON u.id = sp.user_id LEFT JOIN categories c ON c.id = s.category_id LEFT JOIN cities ci ON ci.id = u.city_id

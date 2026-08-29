@@ -135,6 +135,13 @@ textarea { min-height: 92px; padding-top: 10px; resize: vertical; }
 .work-card { overflow: hidden; }
 .work-card img { width: 100%; aspect-ratio: 16/10; object-fit: cover; background: #edf4ef; border-bottom: 1px solid var(--line); }
 .work-card div { padding: 14px; }
+.account-layout { display: grid; grid-template-columns: 320px minmax(0,1fr); gap: 16px; align-items: start; }
+.account-summary { display: grid; gap: 14px; justify-items: start; }
+.account-summary h2 { margin: 0; }
+.account-summary .actions { margin-top: 8px; }
+.account-avatar { display: grid; place-items: center; width: 112px; height: 112px; border-radius: 18px; color: white; background: linear-gradient(135deg,var(--green),var(--blue)); font-size: 32px; font-weight: 950; box-shadow: var(--shadow-soft); }
+.account-form { display: grid; gap: 16px; }
+.account-form h2 { margin: 0; font-size: 20px; }
 .message-box { display: grid; gap: 10px; }
 .bubble { max-width: 72%; padding: 11px 13px; border-radius: 12px; background: #edf4ef; }
 .bubble.me { justify-self: end; color: #fff; background: var(--green); }
@@ -196,7 +203,7 @@ dialog::backdrop { background: rgba(6,12,10,.52); backdrop-filter: blur(3px); }
 .auth-status { min-height: 22px; margin: 0; color: var(--green-dark); font-weight: 700; }
 .auth-submit { width: 100%; }
 @media (max-width: 1060px) {
-  .hero-section, .feature-strip, .steps-grid, .talent-grid, .pricing-grid, .split, .grid, .grid.two, .grid.four, .work-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .hero-section, .feature-strip, .steps-grid, .talent-grid, .pricing-grid, .split, .grid, .grid.two, .grid.four, .work-grid, .account-layout { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .hero-section { min-height: auto; padding-top: 20px; }
   .landing-header { padding: 16px 0; }
   .landing-nav { display: none; }
@@ -208,7 +215,7 @@ dialog::backdrop { background: rgba(6,12,10,.52); backdrop-filter: blur(3px); }
   .filters { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
 @media (max-width: 680px) {
-  .hero-section, .feature-strip, .steps-grid, .talent-grid, .pricing-grid, .split, .grid, .grid.two, .grid.four, .work-grid, .filters { grid-template-columns: 1fr; }
+  .hero-section, .feature-strip, .steps-grid, .talent-grid, .pricing-grid, .split, .grid, .grid.two, .grid.four, .work-grid, .filters, .account-layout { grid-template-columns: 1fr; }
   .header-actions, .hero-actions, .top-actions, .actions { display: grid; grid-template-columns: 1fr; }
   .topbar,.list-item,.footer-inner { align-items: stretch; flex-direction: column; }
   .topbar { position: static; }

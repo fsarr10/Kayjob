@@ -23,6 +23,7 @@ const seed = {
   messages: [],
   notifications: [],
   disputes: [],
+  account: null,
   selectedOrderId: null
 };
 
@@ -62,6 +63,10 @@ function readApiError(body) {
   if (!error) return "API indisponible";
   if (typeof error === "string") return error;
   return error.message || JSON.stringify(error);
+}
+
+function initials(name) {
+  return String(name || "KJ").split(/\s+/).filter(Boolean).map((part) => part[0]).slice(0, 2).join("").toUpperCase();
 }
 
 function isEmailLike(value) {
@@ -119,6 +124,9 @@ async function syncRemote() {
       state.missions = missions.map((row) => ({ id: `api-mis-${row.id}`, apiId: Number(row.id), title: row.title, city: row.city || "Sénégal", category: row.category || "Mission", budget: Number(row.budget_max), mode: row.delivery_mode || "remote", offers: Number(row.offers || 0) }));
     }
     if (sessionStorage.getItem("kayjob.session")) {
+      const account = await apiFetch("/api/me/account");
+      state.account = mapAccount(account);
+      if (account) sessionStorage.setItem("kayjob.user", JSON.stringify({ id: account.id, full_name: account.full_name, email: account.email, phone: account.phone, role: account.role || "both" }));
       const orders = await apiFetch("/api/me/orders");
       state.orders = Array.isArray(orders) ? orders.map((row) => ({ id: `KJ-${row.id}`, apiId: Number(row.id), title: row.title, status: row.status, gross: Number(row.amount_total || 0), net: Number(row.amount_net_provider || 0) })) : [];
       if (isUserAdmin()) {
@@ -136,6 +144,47 @@ async function syncRemote() {
     save();
     render();
   }
+}
+
+function mapAccount(row) {
+  if (!row) return null;
+  return {
+    id: Number(row.id),
+    name: row.full_name || "Membre KayJob",
+    pseudo: row.pseudo || "",
+    email: row.email || "",
+    phone: row.phone || "",
+    avatar: row.avatar_url || "",
+    city: row.city || "",
+    role: row.role || "both",
+    canSell: Boolean(row.can_sell || row.profile_id),
+    verificationStatus: row.verification_status || "pending",
+    profileId: row.profile_id ? Number(row.profile_id) : null,
+    headline: row.headline || "",
+    bio: row.bio || "",
+    availability: row.availability || "",
+    score: Number(row.sama_score || 50)
+  };
+}
+
+function accountProfile(account) {
+  if (!account || !account.profileId) return null;
+  return {
+    id: `me-${account.profileId}`,
+    userId: account.id,
+    name: account.name,
+    pseudo: account.pseudo || `membre-${account.id}`,
+    city: account.city || "Sénégal",
+    category: "Profil",
+    title: account.headline || "Profil KayJob",
+    price: 0,
+    mode: "remote",
+    score: account.score,
+    avatar: account.avatar,
+    verificationStatus: account.verificationStatus,
+    skills: ["Profil", account.availability || "Disponible"].filter(Boolean),
+    works: []
+  };
 }
 
 function mapPortfolio(items) {
@@ -260,6 +309,7 @@ function setTitle(route) {
     orders: ["Escrow", "Commandes"],
     messages: ["Temps réel", "Messages"],
     portfolio: ["Profil public", "Portfolio"],
+    account: ["Paramètres", "Mon compte"],
     admin: ["Back-office", "Administration"],
     login: ["Sécurité", "Connexion"]
   };
@@ -291,6 +341,11 @@ function getCurrentUser() {
 }
 
 function getCurrentProfile() {
+  const localProfile = accountProfile(state.account);
+  if (localProfile) {
+    const serviceProfile = state.services.find((service) => Number(service.userId) === Number(state.account.id));
+    return serviceProfile ? { ...localProfile, ...serviceProfile, avatar: state.account.avatar || serviceProfile.avatar } : localProfile;
+  }
   const user = getCurrentUser();
   if (!user) return null;
 
@@ -331,7 +386,11 @@ function render() {
     location.hash = "dashboard";
     return;
   }
-  const pages = { dashboard, discover, missions, orders, messages, portfolio, admin, login };
+  if (route === "account" && !hasActiveSession()) {
+    location.hash = "login";
+    return;
+  }
+  const pages = { dashboard, discover, missions, orders, messages, portfolio, account, admin, login };
   const hash = route;
   if (hash === "portfolio" && !state.viewingProfileId) {
     const myProfile = getCurrentProfile();
@@ -538,6 +597,46 @@ function portfolio() {
     </section>`;
 }
 
+function account() {
+  const user = state.account || mapAccount(getCurrentUser()) || {};
+  const avatarStyle = user.avatar ? `background-image:url('${attr(safeUrl(user.avatar))}');background-size:cover;background-position:center` : "";
+  return `
+    <section class="account-layout">
+      <aside class="panel account-summary">
+        <div class="account-avatar" style="${avatarStyle}">${user.avatar ? "" : esc(initials(user.name || user.full_name))}</div>
+        <h2>${esc(user.name || user.full_name || "Mon compte")}</h2>
+        <p class="meta">${esc(user.email || user.phone || "Compte KayJob")}</p>
+        <div class="row">
+          <span class="badge">${esc(user.role || "both")}</span>
+          <span class="badge ${user.verificationStatus === "verified" ? "" : "yellow"}">${esc(user.verificationStatus || "pending")}</span>
+        </div>
+        <div class="actions">
+          <button class="secondary" data-route-to="portfolio">Voir portfolio</button>
+          <button class="danger" id="logoutButton">Déconnexion</button>
+        </div>
+      </aside>
+      <form class="panel account-form" id="accountForm">
+        <h2>Informations du compte</h2>
+        <div class="grid two">
+          <label>Nom complet<input name="fullName" value="${attr(user.name || "")}" required /></label>
+          <label>Pseudo public<input name="pseudo" value="${attr(user.pseudo || "")}" placeholder="ex: awa-design" /></label>
+          <label>Email<input value="${attr(user.email || "")}" disabled /></label>
+          <label>Téléphone<input value="${attr(user.phone || "")}" disabled /></label>
+          <label>Ville<input name="city" value="${attr(user.city || "")}" placeholder="Dakar" /></label>
+          <label>Photo de profil<input name="avatarUrl" value="${attr(user.avatar || "")}" placeholder="https://..." /></label>
+        </div>
+        <h2>Profil prestataire</h2>
+        <label>Titre professionnel<input name="headline" value="${attr(user.headline || "")}" placeholder="Designer logo, développeur web..." /></label>
+        <label>Bio<textarea name="bio" placeholder="Présente ton expérience, tes services et ta façon de travailler.">${esc(user.bio || "")}</textarea></label>
+        <label>Disponibilité<input name="availability" value="${attr(user.availability || "")}" placeholder="Disponible cette semaine" /></label>
+        <div class="actions">
+          <button class="primary" type="submit">Enregistrer</button>
+          <span class="meta" id="accountStatus" aria-live="polite"></span>
+        </div>
+      </form>
+    </section>`;
+}
+
 function admin() {
   const pendingVerifs = state.services.length > 3 ? state.services.slice(0, 3) : state.services;
   const pendingLitiges = state.disputes || [];
@@ -619,13 +718,22 @@ function bindActions() {
   if (adminLink) adminLink.style.display = isUserAdmin() ? "" : "none";
   document.querySelector("#authButton")?.addEventListener("click", () => {
     if (sessionStorage.getItem("kayjob.session")) {
-      const myProfile = getCurrentProfile();
-      if (myProfile) state.viewingProfileId = myProfile.id;
-      location.hash = "portfolio";
+      location.hash = "account";
       return;
     }
     location.hash = "login";
   });
+  document.querySelector("#logoutButton")?.addEventListener("click", () => {
+    sessionStorage.removeItem("kayjob.session");
+    sessionStorage.removeItem("kayjob.user");
+    state.account = null;
+    state.orders = [];
+    state.messages = [];
+    save();
+    toggleAppVisibility(false);
+    location.hash = "";
+  });
+  document.querySelector("#accountForm")?.addEventListener("submit", saveAccount);
   document.querySelectorAll("[data-route-to]").forEach((button) => button.addEventListener("click", () => { location.hash = button.dataset.routeTo; }));
   document.querySelectorAll("[data-modal]").forEach((button) => button.addEventListener("click", () => openModal(button.dataset.modal)));
   document.querySelectorAll("[data-order]").forEach((button) => button.addEventListener("click", () => {
@@ -664,6 +772,37 @@ function bindActions() {
   if (form) form.addEventListener("submit", sendMessage);
   const loginForm = document.querySelector("#loginForm");
   if (loginForm) loginForm.addEventListener("submit", handleLogin);
+}
+
+async function saveAccount(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const status = document.querySelector("#accountStatus");
+  const submit = form.querySelector("button[type='submit']");
+  const data = new FormData(form);
+  if (status) status.textContent = "Enregistrement...";
+  if (submit) submit.disabled = true;
+  try {
+    const payload = {
+      fullName: String(data.get("fullName") || "").trim(),
+      pseudo: String(data.get("pseudo") || "").trim(),
+      city: String(data.get("city") || "").trim(),
+      avatarUrl: String(data.get("avatarUrl") || "").trim(),
+      headline: String(data.get("headline") || "").trim(),
+      bio: String(data.get("bio") || "").trim(),
+      availability: String(data.get("availability") || "").trim()
+    };
+    const account = await apiFetch("/api/me/account", { method: "PATCH", body: JSON.stringify(payload) });
+    state.account = mapAccount(account);
+    sessionStorage.setItem("kayjob.user", JSON.stringify({ id: account.id, full_name: account.full_name, email: account.email, phone: account.phone, role: account.role || "both" }));
+    await syncRemote();
+    if (status) status.textContent = "Compte enregistré.";
+    location.hash = "account";
+  } catch (error) {
+    if (status) status.textContent = error instanceof Error ? error.message : "Enregistrement impossible";
+  } finally {
+    if (submit) submit.disabled = false;
+  }
 }
 
 async function handleLogin(event) {
@@ -720,7 +859,7 @@ async function createOrder(serviceId) {
   }
   const service = state.services.find((item) => item.id === serviceId);
   if (!service) return;
-  if (apiBase && Number.isInteger(service.apiId)) {
+  if (apiAvailable && Number.isInteger(service.apiId)) {
     try {
       const order = await apiFetch("/api/orders", { method: "POST", body: JSON.stringify({ serviceId: service.apiId, amountTotal: Number(service.price) }) });
       const payment = await apiFetch(`/api/orders/${order.id}/pay`, { method: "POST", body: JSON.stringify({}) });
@@ -745,7 +884,7 @@ function addOffer(id) {
   }
   const mission = state.missions.find((item) => item.id === id);
   if (!mission) return;
-  if (apiBase && Number.isInteger(mission.apiId)) {
+  if (apiAvailable && Number.isInteger(mission.apiId)) {
     return apiFetch(`/api/missions/${mission.apiId}/offers`, { method: "POST", body: JSON.stringify({ amountXof: Number(mission.budget), deliveryDays: 3, message: "Je peux réaliser cette mission avec un suivi clair." }) }).then(() => syncRemote()).catch((error) => alert(error.message));
   }
   alert("Cette mission n'est pas synchronisée avec la base de données.");
@@ -832,7 +971,7 @@ async function sendMessage(event) {
     status: "Vu",
     attachment: value.startsWith("Pièce jointe :")
   };
-  if (apiBase && sessionStorage.getItem("kayjob.session") && order) {
+  if (apiAvailable && sessionStorage.getItem("kayjob.session") && order) {
     try {
       await withBusyButton(submitter, "Envoi...", async () => {
         const apiOrderId = getApiOrderId(order);
