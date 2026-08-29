@@ -7,6 +7,7 @@
     <meta name="theme-color" content="#0d8f61" />
     <title>KayJob | Marketplace des talents et services</title>
     <link rel="icon" href="./assets/kayjob-logo.svg" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -32,19 +33,18 @@
         <section class="hero-section">
           <div class="hero-copy">
             <span class="eyebrow">Marketplace nationale</span>
-            <h1>Tout talent a de la valeur. Tout service mérite d’être payé proprement.</h1>
+            <h1>KayJob</h1>
             <p>
-              KayJob connecte clients, prestataires, freelances et personnes avec des compétences utiles dans un seul espace simple et sécurisé.
-              Publiez une tâche, trouvez un bon profil ou vendez votre talent avec des transactions protégées et un suivi clair.
+              Trouvez un talent, publiez une mission ou vendez vos compétences avec un paiement protégé, des messages suivis et un portfolio relié à la base de données.
             </p>
             <div class="hero-actions">
               <button class="primary-button" id="ctaCreateAccount">Créer un compte</button>
               <button class="secondary-button" id="ctaBrowse">Découvrir les talents</button>
             </div>
             <ul class="hero-proof">
-              <li>+2 400 missions publiées</li>
-              <li>98% de satisfaction</li>
-              <li>24h pour la validation</li>
+              <li>Profils réels uniquement</li>
+              <li>Paiement séquestré</li>
+              <li>Litiges suivis par admin</li>
             </ul>
           </div>
 
@@ -52,19 +52,19 @@
             <div class="stats-card large">
               <div class="stat-row">
                 <span class="status-dot"></span>
-                <span>Écosystème actif</span>
+                <span>Backend connecté</span>
               </div>
-              <strong>14 régions</strong>
-              <p>Services locaux et à distance</p>
+              <strong>Neon + Render</strong>
+              <p>Données synchronisées en temps réel à l’ouverture.</p>
             </div>
             <div class="mini-grid">
               <div class="stats-card">
-                <strong>1.2k</strong>
-                <span>Prestataires actifs</span>
+                <strong>API</strong>
+                <span>Services et missions</span>
               </div>
               <div class="stats-card accent">
-                <strong>92%</strong>
-                <span>Livraisons validées</span>
+                <strong>Admin</strong>
+                <span>Litiges et retraits</span>
               </div>
             </div>
             <div class="floating-panel">
@@ -73,12 +73,12 @@
                 <span class="chip muted">Paiement protégé</span>
               </div>
               <div class="payment-line">
-                <span>Montant</span>
-                <strong>18 000 FCFA</strong>
+                <span>Client</span>
+                <strong>Paiement vérifié</strong>
               </div>
               <div class="payment-line muted-row">
-                <span>KayJob</span>
-                <strong>séquestre</strong>
+                <span>Prestataire</span>
+                <strong>Reversement net</strong>
               </div>
             </div>
           </div>
@@ -86,21 +86,21 @@
 
         <section class="feature-strip" id="solutions">
           <div class="feature-card">
-            <span class="feature-icon">⚡</span>
+            <span class="feature-icon">01</span>
             <div>
               <h3>Fast booking</h3>
               <p>Publiez une mission ou commandez un service en quelques minutes.</p>
             </div>
           </div>
           <div class="feature-card">
-            <span class="feature-icon">🛡️</span>
+            <span class="feature-icon">02</span>
             <div>
               <h3>Paiement sécurisé</h3>
               <p>Le montant est protégé avant la livraison finale.</p>
             </div>
           </div>
           <div class="feature-card">
-            <span class="feature-icon">📈</span>
+            <span class="feature-icon">03</span>
             <div>
               <h3>Portfolio public</h3>
               <p>Montrez vos skills, réalisations et avis de clients.</p>
@@ -168,20 +168,20 @@
           </div>
           <div class="pricing-grid">
             <article class="price-card">
-              <h3>Starter</h3>
-              <div class="price">0%</div>
-              <p>Pour les tests et premiers achats.</p>
+              <h3>Commande</h3>
+              <div class="price">Escrow</div>
+              <p>Le client paie avant la livraison finale.</p>
             </article>
             <article class="price-card featured">
-              <div class="badge-price">Populaire</div>
-              <h3>Pro</h3>
-              <div class="price">8%</div>
-              <p>Pour les missions régulières et les petites équipes.</p>
+              <div class="badge-price">Backend</div>
+              <h3>Commission</h3>
+              <div class="price">API</div>
+              <p>Le montant net prestataire est calculé côté serveur.</p>
             </article>
             <article class="price-card">
-              <h3>Business</h3>
-              <div class="price">10%</div>
-              <p>Pour les besoins premium, entreprises et gestion multi-projets.</p>
+              <h3>Retrait</h3>
+              <div class="price">Admin</div>
+              <p>Les fonds sont réservés puis validés avant payout.</p>
             </article>
           </div>
         </section>
@@ -225,6 +225,7 @@
             <h1 id="routeTitle">Tableau de bord</h1>
           </div>
           <div class="top-actions">
+            <span class="app-status" id="apiStatus">API</span>
             <button class="ghost" id="authButton">Mon compte</button>
             <button class="primary" id="quickMission">Publier une mission</button>
           </div>
@@ -264,7 +265,7 @@
     </dialog>
 
     <script>
-      window.KAYJOB_API_URL = window.KAYJOB_API_URL || "https://kayjob.onrender.com";
+      globalThis.KAYJOB_API_URL = globalThis.KAYJOB_API_URL || "__KAYJOB_API_URL__";
     </script>
     <script src="./app.js"></script>
   </body>

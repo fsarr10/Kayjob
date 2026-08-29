@@ -26,6 +26,7 @@ if (parsed.hostname.endsWith(".neon.tech") && !parsed.searchParams.has("options"
 
 const migrations = readdirSync("database/migrations")
   .filter((file) => file.endsWith(".sql"))
+  .filter((file) => process.env.INCLUDE_SEED_DATA === "true" || !/(^|_)(local|test|seed|media)/i.test(file))
   .sort();
 
 for (const migration of migrations) {

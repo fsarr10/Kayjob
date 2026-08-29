@@ -1,8 +1,10 @@
 const storageKey = "kayjob.webapp.state";
-const apiBase = String(window.KAYJOB_API_URL || "").replace(/\/$/, "");
+const stateVersion = 2;
+const defaultApiBase = location.protocol === "file:" || ["localhost", "127.0.0.1", ""].includes(location.hostname) ? "" : "https://kayjob-api.onrender.com";
+const configuredApiBase = String(globalThis.KAYJOB_API_URL || "").includes("__KAYJOB_API_URL__") ? "" : globalThis.KAYJOB_API_URL;
+const apiBase = String(configuredApiBase || localStorage.getItem("kayjob.api.url") || defaultApiBase).replace(/\/$/, "");
 const categories = ["Informatique", "Design", "Média", "Éducation", "Digital", "Créatif", "Services physiques"];
 const cities = ["Dakar", "Thiès", "Saint-Louis", "Ziguinchor", "Kaolack", "Touba", "Mbour", "Diourbel"];
-const demoAdminAccounts = ["admin@kayjob.sn", "admin", "+221770000000"];
 const authOverlay = document.querySelector("#authOverlay");
 const landingPage = document.querySelector("#landingPage");
 const appShell = document.querySelector("#appShell");
@@ -12,74 +14,15 @@ const fullNameGroup = document.querySelector("#fullNameGroup");
 const authTabs = document.querySelectorAll(".auth-tab");
 let currentAuthMode = "login";
 
-const demoProfiles = [
-  { id: "srv-1", name: "Awa Diop", pseudo: "awadesign", city: "Kaolack", category: "Design", title: "Logo et identité visuelle", price: 5000, mode: "remote", score: 92, image: "././assets/portfolio-logo.svg" },
-  { id: "srv-2", name: "Mamadou Fall", pseudo: "mfallcode", city: "Dakar", category: "Informatique", title: "Site vitrine React", price: 15000, mode: "remote", score: 89, image: "././assets/portfolio-web.svg" },
-  { id: "srv-3", name: "Fatou Ndiaye", pseudo: "fatoulearn", city: "Saint-Louis", category: "Éducation", title: "Cours particuliers et correction", price: 3000, mode: "both", score: 86, image: "././assets/portfolio-course.svg" },
-  { id: "srv-4", name: "Cheikh Bâ", pseudo: "cheikhfix", city: "Thiès", category: "Services physiques", title: "Réparation PC et réseau", price: 7000, mode: "onsite", score: 82, image: "././assets/portfolio-repair.svg" },
-  { id: "srv-5", name: "Mariama Sarr", pseudo: "mariamacm", city: "Ziguinchor", category: "Digital", title: "Gestion Instagram et contenu", price: 10000, mode: "remote", score: 94, image: "././assets/portfolio-social.svg" },
-  { id: "srv-6", name: "Ibrahima Sy", pseudo: "ibrahimacam", city: "Mbour", category: "Média", title: "Photo événementielle et retouche", price: 12000, mode: "both", score: 88, image: "././assets/portfolio-photo.svg" },
-  { id: "srv-7", name: "Ndeye Mbaye", pseudo: "ndeyevideo", city: "Dakar", category: "Média", title: "Montage vidéo et reels TikTok", price: 9000, mode: "remote", score: 91, image: "././assets/portfolio-video.svg" },
-  { id: "srv-8", name: "Ousmane Sane", pseudo: "ousmanedev", city: "Louga", category: "Informatique", title: "Maintenance WordPress & SEO", price: 6000, mode: "both", score: 87, image: "././assets/portfolio-web.svg" }
-];
-
 const seed = {
-  services: demoProfiles.map((profile) => talent(profile.id, profile.name, profile.pseudo, profile.city, profile.category, profile.title, profile.price, profile.mode, profile.score, profile.image)),
-  missions: [
-    { id: "mis-1", title: "Filmer une cérémonie locale", city: "Kaolack", category: "Média", budget: 18000, mode: "onsite", offers: 4 },
-    { id: "mis-2", title: "Créer une affiche de conférence", city: "Touba", category: "Design", budget: 6000, mode: "remote", offers: 9 },
-    { id: "mis-3", title: "Corriger un mémoire de licence", city: "Dakar", category: "Éducation", budget: 10000, mode: "remote", offers: 6 },
-    { id: "mis-4", title: "Créer des storys pour lancement produit", city: "Thiès", category: "Digital", budget: 8000, mode: "remote", offers: 3 },
-    { id: "mis-5", title: "Installer réseau et maintenance informatique", city: "Saint-Louis", category: "Services physiques", budget: 15000, mode: "onsite", offers: 5 }
-  ],
-  orders: [
-    { id: "ord-1", serviceId: "srv-2", status: "escrowed", gross: 15000, commission: 1500, net: 13500 },
-    { id: "ord-2", serviceId: "srv-1", status: "delivered", gross: 5000, commission: 500, net: 4500 },
-    { id: "ord-3", serviceId: "srv-5", status: "paid_out", gross: 10000, commission: 1000, net: 9000 },
-    { id: "ord-4", serviceId: "srv-6", status: "in_progress", gross: 12000, commission: 1200, net: 10800 }
-  ],
-  messages: [
-    {
-      orderId: "ord-1",
-      peer: "Mamadou Fall",
-      role: "Développeur web",
-      online: true,
-      items: [
-        { id: "m-1", me: false, text: "Bonjour, je peux livrer une première version demain.", time: "09:12" },
-        { id: "m-2", me: true, text: "Parfait, j'envoie le brief et les couleurs.", time: "09:14" },
-        { id: "m-3", me: false, text: "Très bien, je mets aussi le formulaire de contact.", time: "09:16" }
-      ]
-    },
-    {
-      orderId: "ord-2",
-      peer: "Awa Diop",
-      role: "Designer",
-      online: false,
-      items: [
-        { id: "m-4", me: false, text: "Le logo a été livré en formats SVG et PNG.", time: "Hier" },
-        { id: "m-5", me: true, text: "Merci, j’ai validé la version finale.", time: "Hier" }
-      ]
-    },
-    {
-      orderId: "ord-3",
-      peer: "Mariama Sarr",
-      role: "Community manager",
-      online: true,
-      items: [
-        { id: "m-6", me: false, text: "Les storys du lancement sont publiées ce soir.", time: "Lun" },
-        { id: "m-7", me: true, text: "Très bien, je te réévalue dans 48h.", time: "Lun" }
-      ]
-    }
-  ],
-  notifications: [
-    "Paiement escrow confirmé.",
-    "Nouvelle proposition reçue sur une mission Design.",
-    "Document de profil à valider.",
-    "Nouvelle commande validée pour un profil média.",
-    "Un litige a été signalé en attente de traitement."
-  ],
-  disputes: [{ id: "lit-1", orderId: "ord-4", status: "open" }],
-  selectedOrderId: "ord-1"
+  version: stateVersion,
+  services: [],
+  missions: [],
+  orders: [],
+  messages: [],
+  notifications: [],
+  disputes: [],
+  selectedOrderId: null
 };
 
 let state = load();
@@ -93,29 +36,28 @@ function safeSeed() {
 }
 
 async function apiFetch(path, options = {}) {
-  const headers = { "content-type": "application/json", ...(options.headers || {}) };
+  if (!apiBase) throw new Error("API non configurée");
+  const headers = { accept: "application/json", ...(options.headers || {}) };
+  if (options.body) headers["content-type"] = "application/json";
   const token = sessionStorage.getItem("kayjob.session");
   if (token) headers.authorization = `Bearer ${token}`;
-  const response = await fetch(`${apiBase}${path}`, { ...options, headers });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error || "API indisponible");
-  return body.data;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), Number(options.timeoutMs || 12000));
+  try {
+    const response = await fetch(`${apiBase}${path}`, { ...options, headers, signal: controller.signal });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error || "API indisponible");
+    return body.data;
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error("API trop lente, réessaie dans un instant.");
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function isEmailLike(value) {
   return /@/.test(value);
-}
-
-function demoPasswordHash(password) {
-  return `demo:${btoa(String.fromCharCode(...[...password].map((char) => char.charCodeAt(0))))}`;
-}
-
-function localAuthKey(contact) {
-  return `kayjob.local.users.${String(contact || "").trim().toLowerCase()}`;
-}
-
-function localAuthEnabled() {
-  return !apiBase || !location.hostname.includes("render") || !location.hostname.includes("vercel");
 }
 
 function setAuthMode(mode) {
@@ -146,38 +88,11 @@ async function loginWithPassword(contact, password, mode, fullName) {
     : { phone: contact.trim(), password };
   if (mode === "signup") payload.fullName = fullName || "Nouveau membre";
 
-  if (apiBase && !localAuthEnabled()) {
-    const endpoint = mode === "signup" ? "/api/auth/signup" : "/api/auth/login";
-    const result = await apiFetch(endpoint, { method: "POST", body: JSON.stringify(payload) });
-    if (result?.token) {
-      sessionStorage.setItem("kayjob.session", result.token);
-      if (result.user) sessionStorage.setItem("kayjob.user", JSON.stringify(result.user));
-      return true;
-    }
-  }
-
-  const key = localAuthKey(contact);
-  const store = JSON.parse(localStorage.getItem("kayjob.local.users") || "{}") || {};
-  if (mode === "signup") {
-    if (store[contact.trim().toLowerCase()]) throw new Error("Ce compte existe déjà. Connectez-vous avec votre mot de passe.");
-    store[contact.trim().toLowerCase()] = { fullName: payload.fullName, password: demoPasswordHash(password), createdAt: Date.now() };
-    localStorage.setItem("kayjob.local.users", JSON.stringify(store));
-  } else {
-    const account = store[contact.trim().toLowerCase()];
-    if (!account || account.password !== demoPasswordHash(password)) throw new Error("Identifiants invalides.");
-  }
-  const contactNorm = contact.trim().toLowerCase();
-  const isAdmin = demoAdminAccounts.some((admin) => admin.toLowerCase() === contactNorm);
-  const user = {
-    id: `demo-${Date.now()}`,
-    full_name: mode === "signup" ? payload.fullName : (store[contactNorm]?.fullName || "Membre KayJob"),
-    email: isEmailLike(contact) ? contactNorm : null,
-    phone: isEmailLike(contact) ? null : contact.trim(),
-    role: isAdmin ? "admin" : "both",
-    isAdmin: isAdmin
-  };
-  sessionStorage.setItem("kayjob.session", `demo-${Date.now()}`);
-  sessionStorage.setItem("kayjob.user", JSON.stringify(user));
+  const endpoint = mode === "signup" ? "/api/auth/signup" : "/api/auth/login";
+  const result = await apiFetch(endpoint, { method: "POST", body: JSON.stringify(payload) });
+  if (!result?.token) throw new Error("Session API manquante");
+  sessionStorage.setItem("kayjob.session", result.token);
+  if (result.user) sessionStorage.setItem("kayjob.user", JSON.stringify(result.user));
   return true;
 }
 
@@ -190,37 +105,46 @@ async function syncRemote() {
   if (!apiBase) return;
   try {
     const services = await apiFetch("/api/services");
-    if (Array.isArray(services) && services.length) {
-      state.services = services.map((row) => ({ ...talent(row.id, row.full_name, row.pseudo || "talent", row.city || "Sénégal", row.category || "Compétence", row.title, Number(row.starting_price), row.delivery_mode || "remote", Number(row.sama_score || 0), "./assets/portfolio-web.svg"), avatar: row.avatar_url }));
-    }
+    state.services = Array.isArray(services) ? services.map((row) => ({ ...talent(`api-srv-${row.id}`, row.full_name, row.pseudo || "talent", row.city || "Sénégal", row.category || "Compétence", row.title, Number(row.starting_price), row.delivery_mode || "remote", Number(row.sama_score || 0), mapPortfolio(row.portfolio)), apiId: Number(row.id), userId: Number(row.user_id), avatar: row.avatar_url, verificationStatus: row.verification_status })) : [];
     const missions = await apiFetch("/api/missions");
     if (Array.isArray(missions)) {
-      state.missions = missions.map((row) => ({ id: row.id, title: row.title, city: row.city || "Sénégal", category: row.category || "Mission", budget: Number(row.budget_max), mode: row.delivery_mode || "remote", offers: 0 }));
+      state.missions = missions.map((row) => ({ id: `api-mis-${row.id}`, apiId: Number(row.id), title: row.title, city: row.city || "Sénégal", category: row.category || "Mission", budget: Number(row.budget_max), mode: row.delivery_mode || "remote", offers: Number(row.offers || 0) }));
     }
     if (sessionStorage.getItem("kayjob.session")) {
       const orders = await apiFetch("/api/me/orders");
-      state.orders = Array.isArray(orders) ? orders.map((row) => ({ id: `KJ-${row.id}`, apiId: row.id, title: row.title, status: row.status, gross: Number(row.amount_total), net: Number(row.amount_net_provider) })) : [];
+      state.orders = Array.isArray(orders) ? orders.map((row) => ({ id: `KJ-${row.id}`, apiId: Number(row.id), title: row.title, status: row.status, gross: Number(row.amount_total || 0), net: Number(row.amount_net_provider || 0) })) : [];
+      if (isUserAdmin()) {
+        const disputes = await apiFetch("/api/admin/disputes");
+        state.disputes = Array.isArray(disputes) ? disputes.map((row) => ({ id: row.id, orderId: `KJ-${row.order_id}`, apiOrderId: Number(row.order_id), status: row.status, reason: row.reason })) : [];
+      }
     }
     state.remote = true;
     save();
     render();
   } catch (error) {
     state.remote = false;
-    state = { ...safeSeed(), ...state, notifications: [...(state.notifications || []), "Le backend est indisponible, le mode démonstration reste actif."], disputes: state.disputes || [] };
-    console.warn("KayJob API offline, mode démo activé", error.message);
+    state.notifications = [...(state.notifications || []), "Connexion backend indisponible. Vérifie Render, CORS_ORIGIN et DATABASE_URL."];
+    console.warn("KayJob API indisponible", error.message);
     save();
     render();
   }
 }
 
-function talent(id, name, pseudo, city, category, title, price, mode, score, image) {
+function mapPortfolio(items) {
+  return Array.isArray(items) ? items.map((item) => ({
+    title: item.title,
+    type: item.item_type === "link" ? "Lien" : item.item_type || "Portfolio",
+    image: item.media_url || "./assets/portfolio-web.svg",
+    url: item.external_url || item.media_url || "#",
+    description: item.description || ""
+  })) : [];
+}
+
+function talent(id, name, pseudo, city, category, title, price, mode, score, works = []) {
   return {
     id, name, pseudo, city, category, title, price, mode, score, rating: 4.8,
     skills: [category, mode === "onsite" ? "Présentiel" : "Remote"],
-    works: [
-      { title: "Réalisation client", type: "Image", image, url: "https://kayjob.sn/portfolio", description: "Mission validée avec livrables et avis." },
-      { title: "Lien portfolio", type: "Lien", image, url: "https://kayjob.sn/projets", description: "Projet externe visible par les recruteurs." }
-    ]
+    works
   };
 }
 
@@ -238,7 +162,7 @@ function makePortfolio(title, type, image, url, description) {
 function load() {
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey));
-    return saved || safeSeed();
+    return saved?.version === stateVersion ? saved : safeSeed();
   } catch {
     return safeSeed();
   }
@@ -252,12 +176,68 @@ function money(value) {
   return Number(value).toLocaleString("fr-FR") + " FCFA";
 }
 
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+}
+
+function attr(value) {
+  return esc(value).replace(/`/g, "&#96;");
+}
+
+function safeUrl(value) {
+  const url = String(value || "").trim();
+  return /^(https?:|mailto:)/i.test(url) ? url : "#";
+}
+
+async function withBusyButton(button, label, task) {
+  if (button?.disabled) return;
+  const previous = button?.textContent;
+  if (button) {
+    button.disabled = true;
+    button.textContent = label;
+  }
+  try {
+    return await task();
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = previous;
+    }
+  }
+}
+
 function mode(modeValue) {
   return { remote: "À distance", onsite: "Sur place", both: "Les deux" }[modeValue];
 }
 
 function orderStatus(status) {
   return { awaiting_payment: "Paiement attendu", escrowed: "Paiement bloqué", in_progress: "En cours", preview_delivered: "Aperçu livré", final_delivered: "Livré", client_review: "À valider", completed_released: "Payé", delivered: "Livré", paid_out: "Payé", disputed: "Litige", dispute_opened: "Litige" }[status] || status;
+}
+
+function getApiOrderId(order) {
+  return Number(order?.apiId || String(order?.id || "").replace(/\D+/g, "") || 0);
+}
+
+async function loadMessagesForOrder(order) {
+  const orderId = getApiOrderId(order);
+  if (!orderId || !sessionStorage.getItem("kayjob.session")) return;
+  const rows = await apiFetch(`/api/orders/${orderId}/messages`);
+  const thread = {
+    orderId: order.id,
+    peer: order.title || "Commande KayJob",
+    role: "Commande",
+    loaded: true,
+    items: Array.isArray(rows) ? rows.map((message) => ({
+      id: String(message.id),
+      me: Boolean(message.me),
+      text: message.body,
+      time: new Date(message.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+      status: message.me ? "Envoyé" : ""
+    })) : []
+  };
+  state.messages = [...(state.messages || []).filter((item) => item.orderId !== order.id), thread];
+  save();
+  if (currentRoute() === "messages") render();
 }
 
 function currentRoute() {
@@ -360,11 +340,18 @@ function render() {
   if (authButton) authButton.textContent = "Mon compte";
   const quickMission = document.querySelector("#quickMission");
   if (quickMission) quickMission.style.display = hasActiveSession() ? "" : "none";
+  const apiStatus = document.querySelector("#apiStatus");
+  if (apiStatus) {
+    apiStatus.textContent = state.remote ? "API connectée" : apiBase ? "API à vérifier" : "API absente";
+    apiStatus.classList.toggle("online", Boolean(state.remote));
+    apiStatus.classList.toggle("offline", !state.remote);
+  }
   bindActions();
 }
 
 function dashboard() {
   const gmv = state.orders.reduce((sum, order) => sum + order.gross, 0);
+  const recentOrders = state.orders.length ? state.orders.map(orderRow).join("") : emptyState("Aucune commande", "Les commandes apparaîtront ici après un paiement initié depuis un service.", "discover", "Découvrir les talents");
   const quickActions = hasActiveSession() ? `
     <div class="actions">
       <button class="primary" data-modal="service">Publier un service</button>
@@ -379,13 +366,13 @@ function dashboard() {
     <section class="grid four">
       ${metric(state.services.length, "Prestataires", "profils actifs")}
       ${metric(state.missions.length, "Missions", "besoins ouverts")}
-      ${metric(money(gmv), "GMV", "commandes simulées")}
+      ${metric(money(gmv), "GMV", "volume commandes")}
       ${metric(state.disputes.length, "Litiges", "à arbitrer")}
     </section>
     <section class="split" style="margin-top:16px">
       <div class="panel">
         <h2>Commandes récentes</h2>
-        <div class="list">${state.orders.map(orderRow).join("")}</div>
+	        <div class="list">${recentOrders}</div>
       </div>
       <div class="panel">
         <h2>Actions rapides</h2>
@@ -395,7 +382,7 @@ function dashboard() {
 }
 
 function metric(value, label, detail) {
-  return `<article class="metric"><strong>${value}</strong><h3>${label}</h3><p class="meta">${detail}</p></article>`;
+  return `<article class="metric"><strong>${esc(value)}</strong><h3>${esc(label)}</h3><p class="meta">${esc(detail)}</p></article>`;
 }
 
 function login() {
@@ -414,13 +401,14 @@ function discover() {
 }
 
 function serviceCards(rows) {
+  if (!rows.length) return emptyState("Aucun service publié", "Publie ton premier service ou reviens quand de nouveaux profils auront été validés.", "dashboard", "Retour tableau de bord");
   return rows.map((item) => `
     <article class="card service-card">
-      <div class="card-head"><div class="avatar" style="${item.avatar ? `background-image:url('${item.avatar}');background-size:cover` : ""}">${item.avatar ? "" : item.name.split(" ").map((p) => p[0]).join("")}</div><div><h3>${item.title}</h3><p class="meta">${item.name} · ${item.city}</p></div></div>
+      <div class="card-head"><div class="avatar" style="${item.avatar ? `background-image:url('${attr(safeUrl(item.avatar))}');background-size:cover` : ""}">${item.avatar ? "" : esc(item.name.split(" ").map((p) => p[0]).join(""))}</div><div><h3>${esc(item.title)}</h3><p class="meta">${esc(item.name)} · ${esc(item.city)}</p></div></div>
       <div class="row"><span class="badge">${mode(item.mode)}</span><span class="badge yellow">SamaScore ${item.score}/100</span></div>
-      <p>${item.skills.join(" · ")}</p>
+      <p>${item.skills.map(esc).join(" · ")}</p>
       <strong>${money(item.price)}</strong>
-      <div class="actions"><button class="secondary" data-profile="${item.id}">Portfolio</button><button class="primary" data-order="${item.id}">Commander</button></div>
+      <div class="actions"><button class="secondary" data-profile="${attr(item.id)}">Portfolio</button><button class="primary" data-order="${attr(item.id)}">Commander</button></div>
     </article>`).join("");
 }
 
@@ -428,21 +416,21 @@ function missions() {
   const publishButton = hasActiveSession() ? `<div class="actions" style="margin-bottom:16px"><button class="primary" data-modal="mission">Publier une mission</button></div>` : `<p class="meta" style="margin-bottom:16px">Connecte-toi pour publier une mission et recevoir des devis.</p>`;
   return `
     ${publishButton}
-    <section class="list">${state.missions.map((item) => `
+    <section class="list">${state.missions.length ? state.missions.map((item) => `
       <article class="list-item">
-        <div><h3>${item.title}</h3><p class="meta">${item.city} · ${item.category} · ${mode(item.mode)} · ${item.offers} devis</p></div>
-        <div class="actions"><strong>${money(item.budget)}</strong>${hasActiveSession() ? `<button class="secondary" data-offer="${item.id}">Faire un devis</button>` : ""}</div>
-      </article>`).join("")}</section>`;
+        <div><h3>${esc(item.title)}</h3><p class="meta">${esc(item.city)} · ${esc(item.category)} · ${mode(item.mode)} · ${Number(item.offers || 0)} devis</p></div>
+        <div class="actions"><strong>${money(item.budget)}</strong>${hasActiveSession() ? `<button class="secondary" data-offer="${attr(item.id)}">Faire un devis</button>` : ""}</div>
+      </article>`).join("") : emptyState("Aucune mission ouverte", "Les nouvelles missions publiées depuis l’app apparaîtront ici.", null, "")}</section>`;
 }
 
 function orders() {
-  return `<section class="list">${state.orders.map(orderRow).join("")}</section>`;
+  return `<section class="list">${state.orders.length ? state.orders.map(orderRow).join("") : emptyState("Aucune commande", "Commande un service pour créer un escrow, une conversation et un suivi de livraison.", "discover", "Trouver un service")}</section>`;
 }
 
 function orderRow(order) {
   const item = state.services.find((service) => service.id === order.serviceId);
   const adminButtons = isUserAdmin() ? `<button class="primary" data-paid="${order.id}">Valider</button><button class="danger" data-dispute="${order.id}">Litige</button>` : "";
-  return `<article class="list-item"><div><h3>${order.id} · ${item?.title || order.title || "Commande KayJob"}</h3><p class="meta">${money(order.gross ?? order.amount_total ?? 0)} · ${orderStatus(order.status)}</p></div><div class="actions"><button class="secondary" data-select-order="${order.id}">Messages</button>${adminButtons}</div></article>`;
+  return `<article class="list-item"><div><h3>${esc(order.id)} · ${esc(item?.title || order.title || "Commande KayJob")}</h3><p class="meta">${money(order.gross ?? order.amount_total ?? 0)} · ${esc(orderStatus(order.status))}</p></div><div class="actions"><button class="secondary" data-select-order="${attr(order.id)}">Messages</button>${adminButtons}</div></article>`;
 }
 
 function isViewingOwnProfile() {
@@ -463,6 +451,10 @@ function messages() {
   if (!order) return `<section class="panel"><h2>Messages</h2><p class="meta">Connecte-toi et ouvre une commande pour démarrer une conversation.</p></section>`;
   state.selectedOrderId = order.id;
   const conversation = (state.messages || []).find((thread) => thread.orderId === order.id) || (state.messages || [])[0] || { orderId: order.id, peer: "Prestataire", role: "Partenaire", online: true, items: [] };
+  if (sessionStorage.getItem("kayjob.session") && getApiOrderId(order) && !conversation.loaded) {
+    loadMessagesForOrder(order).catch((error) => console.warn("Messages indisponibles", error.message));
+    conversation.loaded = true;
+  }
   const service = state.services.find((item) => item.id === order.serviceId) || state.services[0];
   const rows = conversation.items || [];
   return `
@@ -474,12 +466,12 @@ function messages() {
         ${(state.messages || []).map((thread) => {
           const active = thread.orderId === order.id ? "active" : "";
           const last = thread.items[thread.items.length - 1];
-          return `<button class="chat-thread ${active}" type="button" data-select-order="${thread.orderId}">
-            <div class="avatar chat-avatar">${(thread.peer || "P").split(" ").map((part) => part[0]).slice(0,2).join("").toUpperCase()}</div>
+          return `<button class="chat-thread ${active}" type="button" data-select-order="${attr(thread.orderId)}">
+            <div class="avatar chat-avatar">${esc((thread.peer || "P").split(" ").map((part) => part[0]).slice(0,2).join("").toUpperCase())}</div>
             <div class="chat-thread-body">
-              <div class="chat-thread-head"><strong>${thread.peer}</strong><span>${last ? last.time : "maintenant"}</span></div>
-              <div class="chat-thread-meta"><span>${thread.role}</span><span class="status-pill ${thread.online ? "online" : "offline"}"></span></div>
-              <p>${last ? last.text : "Commencez la discussion"}</p>
+              <div class="chat-thread-head"><strong>${esc(thread.peer)}</strong><span>${esc(last ? last.time : "maintenant")}</span></div>
+              <div class="chat-thread-meta"><span>${esc(thread.role)}</span><span class="status-pill ${thread.online ? "online" : "offline"}"></span></div>
+              <p>${esc(last ? last.text : "Commencez la discussion")}</p>
             </div>
           </button>`;
         }).join("")}
@@ -487,9 +479,9 @@ function messages() {
       <section class="chat-pane">
         <header class="chat-header">
           <div class="chat-header-user">
-            <div class="avatar chat-avatar large">${(conversation.peer || service?.name || "P").split(" ").map((part) => part[0]).slice(0,2).join("").toUpperCase()}</div>
+            <div class="avatar chat-avatar large">${esc((conversation.peer || service?.name || "P").split(" ").map((part) => part[0]).slice(0,2).join("").toUpperCase())}</div>
             <div>
-              <h3>${conversation.peer || service?.name || "Prestataire"}</h3>
+              <h3>${esc(conversation.peer || service?.name || "Prestataire")}</h3>
               <p>${conversation.online ? "En ligne" : "Dernière activité il y a 10 min"}</p>
             </div>
           </div>
@@ -499,8 +491,8 @@ function messages() {
         <div class="chat-messages">
           ${rows.map((message) => `<div class="chat-message ${message.me ? "me" : "them"}">
             <div class="bubble-wrap">
-              ${message.attachment ? `<div class="bubble-doc">📎 ${message.text.replace("Pièce jointe : ", "")}</div>` : `<div class="bubble-text">${message.text}</div>`}
-              <div class="bubble-meta"><span>${message.time}</span>${message.me ? `<span>${message.status || "Vu"}</span>` : ''}</div>
+              ${message.attachment ? `<div class="bubble-doc">Fichier joint · ${esc(message.text.replace("Pièce jointe : ", ""))}</div>` : `<div class="bubble-text">${esc(message.text)}</div>`}
+              <div class="bubble-meta"><span>${esc(message.time)}</span>${message.me ? `<span>${esc(message.status || "Vu")}</span>` : ''}</div>
             </div>
           </div>`).join("")}
         </div>
@@ -529,12 +521,12 @@ function portfolio() {
   return `
     <section class="split">
       <aside class="panel">
-        <h2>kayjob.sn/${profile.pseudo}</h2>
-        <p>${profile.name} · ${profile.city}</p>
+        <h2>kayjob.sn/${esc(profile.pseudo)}</h2>
+        <p>${esc(profile.name)} · ${esc(profile.city)}</p>
         <span class="badge yellow">SamaScore ${profile.score}/100</span>
         <div class="actions" style="margin-top:14px">${addWorkButton}${backButton}</div>
       </aside>
-      <div class="work-grid">${profile.works.map((work) => `<article class="work-card"><img src="${work.image}" alt="" /><div><span class="badge ${work.type === "Lien" ? "blue" : ""}">${work.type}</span><h3>${work.title}</h3><p class="meta">${work.description}</p><a class="primary" href="${work.url}" target="_blank" rel="noreferrer">Ouvrir</a></div></article>`).join("")}</div>
+      <div class="work-grid">${profile.works.length ? profile.works.map((work) => `<article class="work-card"><img src="${attr(safeUrl(work.image))}" alt="" /><div><span class="badge ${work.type === "Lien" ? "blue" : ""}">${esc(work.type)}</span><h3>${esc(work.title)}</h3><p class="meta">${esc(work.description)}</p>${safeUrl(work.url) !== "#" ? `<a class="primary" href="${attr(safeUrl(work.url))}" target="_blank" rel="noreferrer">Ouvrir</a>` : ""}</div></article>`).join("") : `<article class="panel"><p class="meta">Aucune réalisation publiée pour ce profil.</p></article>`}</div>
     </section>`;
 }
 
@@ -553,33 +545,38 @@ function admin() {
     <section class="split" style="margin-top:16px">
       <div class="panel">
         <h2>Vérifications en attente</h2>
-        <div class="list">${pendingVerifs.map((service) => `
-          <article class="list-item">
-            <div><h3>${service.name}</h3><p class="meta">${service.pseudo} · ${service.city}</p></div>
-            <div class="actions"><button class="secondary" data-verify="${service.id}">Valider</button><button class="danger" data-reject="${service.id}">Rejeter</button></div>
-          </article>`).join("")}</div>
+	        <div class="list">${pendingVerifs.length ? pendingVerifs.map((service) => `
+	          <article class="list-item">
+            <div><h3>${esc(service.name)}</h3><p class="meta">${esc(service.pseudo)} · ${esc(service.city)}</p></div>
+	            <div class="actions"><button class="secondary" data-verify="${service.userId}">Valider</button><button class="danger" data-reject="${service.userId}">Rejeter</button></div>
+	          </article>`).join("") : emptyState("Aucune vérification", "Les profils en attente apparaîtront ici.", null, "")}</div>
       </div>
       
       <div class="panel">
         <h2>Escrow en attente</h2>
-        <div class="list">${escrowedOrders.map((order) => {
-          const service = state.services.find((s) => s.id === order.serviceId);
-          return `<article class="list-item">
-            <div><h3>${order.id}</h3><p class="meta">${money(order.gross)} · ${service?.title || "Commande"}</p></div>
-            <div class="actions"><button class="primary" data-release="${order.id}">Libérer</button><button class="danger" data-hold="${order.id}">Bloquer</button></div>
-          </article>`;
-        }).join("")}</div>
+	        <div class="list">${escrowedOrders.length ? escrowedOrders.map((order) => {
+	          const service = state.services.find((s) => s.id === order.serviceId);
+	          return `<article class="list-item">
+            <div><h3>${esc(order.id)}</h3><p class="meta">${money(order.gross)} · ${esc(service?.title || "Commande")}</p></div>
+	            <div class="actions"><button class="primary" data-release="${order.id}">Libérer</button><button class="danger" data-hold="${order.id}">Bloquer</button></div>
+	          </article>`;
+	        }).join("") : emptyState("Aucun escrow bloqué", "Les commandes payées en attente de libération apparaîtront ici.", null, "")}</div>
       </div>
     </section>
     
     <div class="panel" style="margin-top:16px">
       <h2>Litiges ouverts</h2>
-      <div class="list">${pendingLitiges.map((litige) => `
-        <article class="list-item">
-          <div><h3>Litige ${litige.id}</h3><p class="meta">Commande ${litige.orderId} · Statut : ${litige.status}</p></div>
-          <div class="actions"><button class="secondary" data-review="${litige.id}">Examiner</button><button class="primary" data-resolve="${litige.id}">Résoudre</button></div>
-        </article>`).join("")}</div>
-    </div>`;
+	      <div class="list">${pendingLitiges.length ? pendingLitiges.map((litige) => `
+	        <article class="list-item">
+          <div><h3>Litige ${esc(litige.id)}</h3><p class="meta">Commande ${esc(litige.orderId)} · Statut : ${esc(litige.status)}</p></div>
+	          <div class="actions"><button class="secondary" data-review="${litige.id}">Examiner</button><button class="primary" data-resolve="${litige.id}">Résoudre</button></div>
+	        </article>`).join("") : emptyState("Aucun litige ouvert", "Les litiges client ou prestataire arriveront ici.", null, "")}</div>
+	    </div>`;
+}
+
+function emptyState(title, body, route, actionLabel) {
+  const action = route && actionLabel ? `<button class="secondary" data-route-to="${attr(route)}">${esc(actionLabel)}</button>` : "";
+  return `<article class="empty-state"><h3>${esc(title)}</h3><p>${esc(body)}</p>${action}</article>`;
 }
 
 function option(item) {
@@ -625,20 +622,20 @@ function bindActions() {
   document.querySelectorAll("[data-modal]").forEach((button) => button.addEventListener("click", () => openModal(button.dataset.modal)));
   document.querySelectorAll("[data-order]").forEach((button) => button.addEventListener("click", () => {
     if (!ensureLoggedInForAction("auth")) return;
-    createOrder(button.dataset.order);
+    withBusyButton(button, "Création...", () => createOrder(button.dataset.order));
   }));
   document.querySelectorAll("[data-offer]").forEach((button) => button.addEventListener("click", () => {
     if (!ensureLoggedInForAction("auth")) return;
-    addOffer(button.dataset.offer);
+    withBusyButton(button, "Envoi...", () => addOffer(button.dataset.offer));
   }));
-  document.querySelectorAll("[data-paid]").forEach((button) => button.addEventListener("click", () => updateOrder(button.dataset.paid, "paid_out")));
-  document.querySelectorAll("[data-dispute]").forEach((button) => button.addEventListener("click", () => openDispute(button.dataset.dispute)));
-  document.querySelectorAll("[data-verify]").forEach((button) => button.addEventListener("click", () => { alert(`Profil ${button.dataset.verify} vérifié et activé.`); state.notifications.unshift(`Vérification acceptée pour ${button.dataset.verify}`); save(); render(); }));
-  document.querySelectorAll("[data-reject]").forEach((button) => button.addEventListener("click", () => { alert(`Profil ${button.dataset.reject} rejeté. Notification envoyée.`); state.notifications.unshift(`Vérification rejetée pour ${button.dataset.reject}`); save(); render(); }));
-  document.querySelectorAll("[data-release]").forEach((button) => button.addEventListener("click", () => { const order = state.orders.find((o) => o.id === button.dataset.release); if (order) { order.status = "paid_out"; state.notifications.unshift(`Paiement libéré : ${button.dataset.release}`); save(); render(); } }));
-  document.querySelectorAll("[data-hold]").forEach((button) => button.addEventListener("click", () => { const order = state.orders.find((o) => o.id === button.dataset.hold); if (order) { order.status = "disputed"; state.notifications.unshift(`Escrow bloqué : ${button.dataset.hold}`); save(); render(); } }));
-  document.querySelectorAll("[data-review]").forEach((button) => button.addEventListener("click", () => alert(`Examen du litige ${button.dataset.review} - collecte des preuves en cours.`)));
-  document.querySelectorAll("[data-resolve]").forEach((button) => button.addEventListener("click", () => { const litige = state.disputes.find((l) => l.id === button.dataset.resolve); if (litige) { litige.status = "resolved"; state.notifications.unshift(`Litige ${button.dataset.resolve} résolu`); save(); render(); } }));
+  document.querySelectorAll("[data-paid]").forEach((button) => button.addEventListener("click", () => withBusyButton(button, "Validation...", () => updateOrder(button.dataset.paid, "completed_released"))));
+  document.querySelectorAll("[data-dispute]").forEach((button) => button.addEventListener("click", () => withBusyButton(button, "Ouverture...", () => openDispute(button.dataset.dispute))));
+  document.querySelectorAll("[data-verify]").forEach((button) => button.addEventListener("click", () => withBusyButton(button, "Validation...", () => adminVerifyUser(button.dataset.verify, "verify"))));
+  document.querySelectorAll("[data-reject]").forEach((button) => button.addEventListener("click", () => withBusyButton(button, "Rejet...", () => adminVerifyUser(button.dataset.reject, "reject"))));
+  document.querySelectorAll("[data-release]").forEach((button) => button.addEventListener("click", () => withBusyButton(button, "Libération...", () => adminReleaseOrder(button.dataset.release))));
+  document.querySelectorAll("[data-hold]").forEach((button) => button.addEventListener("click", () => withBusyButton(button, "Blocage...", () => adminDisputeOrder(button.dataset.hold))));
+  document.querySelectorAll("[data-resolve]").forEach((button) => button.addEventListener("click", () => withBusyButton(button, "Résolution...", () => adminResolveDispute(button.dataset.resolve))));
+  document.querySelectorAll("[data-review]").forEach((button) => button.addEventListener("click", () => alert((state.disputes || []).find((item) => String(item.id) === String(button.dataset.review))?.reason || "Aucun détail disponible.")));
   document.querySelectorAll("[data-select-order]").forEach((button) => button.addEventListener("click", () => { state.selectedOrderId = button.dataset.selectOrder; save(); location.hash = "messages"; }));
   document.querySelectorAll("[data-profile]").forEach((button) => button.addEventListener("click", () => {
     state.viewingProfileId = button.dataset.profile;
@@ -678,34 +675,8 @@ async function handleLogin(event) {
     toggleAppVisibility(true);
     location.hash = "dashboard";
   } catch (error) {
-    const fallback = await tryLocalAuthLogin(destination, password);
-    if (fallback) {
-      status.textContent = "Connexion réussie en mode démo.";
-      await syncRemote();
-      toggleAppVisibility(true);
-      location.hash = "dashboard";
-      return;
-    }
     status.textContent = error instanceof Error ? error.message : "Connexion impossible";
   }
-}
-
-async function tryLocalAuthLogin(contact, password) {
-  const normalized = String(contact || "").trim();
-  if (!normalized || !password) return false;
-  const store = JSON.parse(localStorage.getItem("kayjob.local.users") || "{}") || {};
-  const entry = store[normalized.toLowerCase()];
-  if (!entry || entry.password !== demoPasswordHash(password)) return false;
-  const user = {
-    id: `demo-${Date.now()}`,
-    full_name: entry.fullName || "Membre KayJob",
-    email: isEmailLike(normalized) ? normalized.toLowerCase() : null,
-    phone: isEmailLike(normalized) ? null : normalized,
-    role: "both"
-  };
-  sessionStorage.setItem("kayjob.session", `demo-${Date.now()}`);
-  sessionStorage.setItem("kayjob.user", JSON.stringify(user));
-  return true;
 }
 
 function filterDiscover() {
@@ -734,25 +705,29 @@ function filterDiscover() {
   }
 }
 
-function createOrder(serviceId) {
+async function createOrder(serviceId) {
   if (!sessionStorage.getItem("kayjob.session")) {
     openModal("auth");
     return;
   }
   const service = state.services.find((item) => item.id === serviceId);
   if (!service) return;
-  if (apiBase) {
-    apiFetch("/api/orders", { method: "POST", body: JSON.stringify({ serviceId: Number(serviceId), amountTotal: Number(service.price) }) }).then(() => syncRemote()).then(() => { location.hash = "orders"; }).catch((error) => alert(error.message));
+  if (apiBase && Number.isInteger(service.apiId)) {
+    try {
+      const order = await apiFetch("/api/orders", { method: "POST", body: JSON.stringify({ serviceId: service.apiId, amountTotal: Number(service.price) }) });
+      const payment = await apiFetch(`/api/orders/${order.id}/pay`, { method: "POST", body: JSON.stringify({}) });
+      await syncRemote();
+      if (payment?.checkoutUrl) location.href = payment.checkoutUrl;
+      else {
+        alert(`Paiement créé. Référence : ${payment.reference || order.id}`);
+        location.hash = "orders";
+      }
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Commande impossible");
+    }
     return;
   }
-  const commission = Math.max(250, Math.round(service.price * .1));
-  const order = { id: `ord-${Date.now()}`, serviceId, status: "escrowed", gross: service.price, commission, net: service.price - commission };
-  state.orders.unshift(order);
-  state.selectedOrderId = order.id;
-  state.notifications.unshift(`Commande créée : ${money(service.price)} placés en escrow.`);
-  save();
-  location.hash = "orders";
-  render();
+  alert("Ce service n'est pas synchronisé avec la base de données.");
 }
 
 function addOffer(id) {
@@ -762,29 +737,74 @@ function addOffer(id) {
   }
   const mission = state.missions.find((item) => item.id === id);
   if (!mission) return;
-  if (apiBase) {
-    return apiFetch(`/api/missions/${Number(id)}/offers`, { method: "POST", body: JSON.stringify({ amountXof: Number(mission.budget), deliveryDays: 3, message: "Je peux réaliser cette mission avec un suivi clair." }) }).then(() => syncRemote()).catch((error) => alert(error.message));
+  if (apiBase && Number.isInteger(mission.apiId)) {
+    return apiFetch(`/api/missions/${mission.apiId}/offers`, { method: "POST", body: JSON.stringify({ amountXof: Number(mission.budget), deliveryDays: 3, message: "Je peux réaliser cette mission avec un suivi clair." }) }).then(() => syncRemote()).catch((error) => alert(error.message));
   }
-  mission.offers += 1;
-  state.notifications.unshift(`Devis ajouté sur ${mission.title}.`);
-  save();
-  render();
+  alert("Cette mission n'est pas synchronisée avec la base de données.");
 }
 
 function updateOrder(id, status) {
-  state.orders.find((item) => item.id === id).status = status;
-  state.notifications.unshift(`Commande ${id} mise à jour : ${orderStatus(status)}.`);
-  save();
-  render();
+  const order = state.orders.find((item) => item.id === id);
+  const orderId = getApiOrderId(order);
+  if (!orderId || status !== "completed_released") return alert("Cette action doit passer par une commande synchronisée.");
+  apiFetch(`/api/orders/${orderId}/validate`, { method: "POST", body: JSON.stringify({}) }).then(syncRemote).catch((error) => alert(error.message));
 }
 
 function openDispute(id) {
-  state.disputes.unshift({ id: `lit-${Date.now()}`, orderId: id, status: "open" });
-  updateOrder(id, "disputed");
+  const order = state.orders.find((item) => item.id === id);
+  const orderId = getApiOrderId(order);
+  if (!orderId) return alert("Cette commande n'est pas synchronisée avec la base de données.");
+  apiFetch(`/api/orders/${orderId}/dispute`, { method: "POST", body: JSON.stringify({ reason: "Litige ouvert depuis le tableau de bord." }) }).then(syncRemote).catch((error) => alert(error.message));
+}
+
+async function adminVerifyUser(userId, action) {
+  if (!userId || userId === "undefined") return alert("Utilisateur introuvable.");
+  try {
+    await apiFetch(`/api/admin/users/${userId}/${action}`, { method: "POST", body: JSON.stringify({}) });
+    await syncRemote();
+  } catch (error) {
+    alert(error instanceof Error ? error.message : "Action admin impossible");
+  }
+}
+
+async function adminReleaseOrder(id) {
+  const order = state.orders.find((item) => item.id === id);
+  const orderId = getApiOrderId(order);
+  if (!orderId) return alert("Commande API introuvable.");
+  try {
+    await apiFetch(`/api/admin/orders/${orderId}/release`, { method: "POST", body: JSON.stringify({}) });
+    await syncRemote();
+  } catch (error) {
+    alert(error instanceof Error ? error.message : "Libération impossible");
+  }
+}
+
+async function adminDisputeOrder(id) {
+  const order = state.orders.find((item) => item.id === id);
+  const orderId = getApiOrderId(order);
+  if (!orderId) return alert("Commande API introuvable.");
+  try {
+    await apiFetch(`/api/admin/orders/${orderId}/dispute`, { method: "POST", body: JSON.stringify({ reason: "Blocage administratif depuis le back-office." }) });
+    await syncRemote();
+  } catch (error) {
+    alert(error instanceof Error ? error.message : "Blocage impossible");
+  }
+}
+
+async function adminResolveDispute(disputeId) {
+  const winner = prompt("Gagnant du litige : client ou provider ?", "client");
+  if (!["client", "provider"].includes(String(winner || "").trim())) return;
+  try {
+    await apiFetch(`/api/admin/disputes/${disputeId}/resolve`, { method: "POST", body: JSON.stringify({ winner: String(winner).trim() }) });
+    await syncRemote();
+  } catch (error) {
+    alert(error instanceof Error ? error.message : "Résolution impossible");
+  }
 }
 
 async function sendMessage(event) {
   event.preventDefault();
+  const submitter = event.submitter;
   const input = document.querySelector("#messageText");
   const value = input?.value.trim();
   if (!value) return;
@@ -804,24 +824,26 @@ async function sendMessage(event) {
     status: "Vu",
     attachment: value.startsWith("Pièce jointe :")
   };
-  if (!thread.items) thread.items = [];
-  thread.items.push(message);
-  if (!state.messages.some((item) => item.orderId === state.selectedOrderId)) state.messages.push(thread);
-  input.value = "";
-  save();
   if (apiBase && sessionStorage.getItem("kayjob.session") && order) {
     try {
-      const apiOrderId = Number(order.apiId || state.selectedOrderId.replace(/\D+/g, "") || 0);
-      const payload = { body: message.attachment ? value.replace("Pièce jointe : ", "") : value, attachmentUrl: message.attachment ? "https://storage.kayjob.sn/preuves/preuve-livraison.pdf" : null };
-      if (apiOrderId) await apiFetch(`/api/orders/${apiOrderId}/messages`, { method: "POST", body: JSON.stringify(payload) });
+      await withBusyButton(submitter, "Envoi...", async () => {
+        const apiOrderId = getApiOrderId(order);
+        const payload = { body: message.attachment ? value.replace("Pièce jointe : ", "") : value, attachmentUrl: message.attachment ? "https://storage.kayjob.sn/preuves/preuve-livraison.pdf" : null };
+        if (apiOrderId) await apiFetch(`/api/orders/${apiOrderId}/messages`, { method: "POST", body: JSON.stringify(payload) });
+      });
+      if (!thread.items) thread.items = [];
+      thread.items.push(message);
+      if (!state.messages.some((item) => item.orderId === state.selectedOrderId)) state.messages.push(thread);
+      input.value = "";
+      save();
     } catch (error) {
-      console.warn("Message API non synchronisé", error.message);
+      alert(error instanceof Error ? error.message : "Message non envoyé");
     }
   }
   render();
 }
 
-modalForm.addEventListener("submit", (event) => {
+modalForm.addEventListener("submit", async (event) => {
   const action = event.submitter?.value;
   if (action === "cancel") {
     event.preventDefault();
@@ -855,10 +877,28 @@ modalForm.addEventListener("submit", (event) => {
   if (!["service", "mission", "work"].includes(action)) return;
   const data = new FormData(modalForm);
   if (action === "service") {
-    state.services.unshift(talent(`srv-${Date.now()}`, "Nouveau talent", "nouveautalent", "Dakar", data.get("category"), data.get("title"), Number(data.get("price")), "remote", 72, "././assets/portfolio-web.svg"));
+    try {
+      await apiFetch("/api/me/services", { method: "POST", body: JSON.stringify({ title: String(data.get("title") || ""), description: String(data.get("description") || data.get("title") || ""), category: String(data.get("category") || ""), price: Number(data.get("price")), deliveryMode: "remote", deliveryDays: 3 }) });
+      modal.close();
+      await syncRemote();
+      location.hash = "portfolio";
+      return;
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Publication impossible");
+      return;
+    }
   }
   if (action === "mission") {
-    state.missions.unshift({ id: `mis-${Date.now()}`, title: data.get("title"), city: data.get("city"), category: "Design", budget: Number(data.get("budget")), mode: "remote", offers: 0 });
+    try {
+      await apiFetch("/api/missions", { method: "POST", body: JSON.stringify({ title: String(data.get("title") || ""), description: String(data.get("description") || data.get("title") || ""), cityId: null, categoryId: null, budgetMax: Number(data.get("budget")), deliveryMode: "remote" }) });
+      modal.close();
+      await syncRemote();
+      location.hash = "missions";
+      return;
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Publication impossible");
+      return;
+    }
   }
   if (action === "work") {
     if (!isViewingOwnProfile()) {
@@ -872,9 +912,16 @@ modalForm.addEventListener("submit", (event) => {
       modal.close();
       return;
     }
-    profile.works.unshift(makePortfolio(data.get("title"), "Lien", "././assets/portfolio-web.svg", data.get("url") || "https://kayjob.sn/projets", data.get("description")));
+    try {
+      await apiFetch("/api/me/portfolio", { method: "POST", body: JSON.stringify({ title: String(data.get("title") || ""), description: String(data.get("description") || ""), externalUrl: String(data.get("url") || ""), itemType: "link" }) });
+      modal.close();
+      await syncRemote();
+      return;
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Ajout impossible");
+      return;
+    }
   }
-  state.notifications.unshift("Action enregistrée dans KayJob.");
   save();
   render();
 });

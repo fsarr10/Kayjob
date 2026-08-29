@@ -30,7 +30,7 @@ L'application Expo 54 contient les écrans V1 :
 - Commandes
 - Messages
 - Portfolio public
-- Compte / OTP / vérification
+- Compte / connexion / vérification
 - Admin national
 
 ```bash
@@ -51,7 +51,7 @@ eas build --platform all --profile production
 eas submit --platform all --profile production
 ```
 
-Avant la première soumission, générer les assets PNG de store à partir de `apps/mobile/assets/kayjob-logo.svg`, renseigner les identifiants Apple/Google Play dans EAS, et remplacer les providers de paiement de démonstration par leurs credentials sandbox puis production.
+Avant la première soumission, générer les assets PNG de store à partir de `apps/mobile/assets/kayjob-logo.svg`, renseigner les identifiants Apple/Google Play dans EAS, et configurer les credentials sandbox puis production des providers de paiement. Le provider OTP mobile reste à brancher séparément.
 
 ## Vérifier et construire
 
@@ -76,6 +76,18 @@ cp .env.example .env
 npm run db:check
 npm run db:schema
 npm run db:tables
+```
+
+Pour une base Render/Neon de production, applique les migrations sans données de test :
+
+```bash
+npm run db:migrate
+```
+
+Les seeds `006_local_test_data.sql` et `007_test_media.sql` sont exclus par défaut. Pour remplir une base locale/UAT uniquement :
+
+```bash
+INCLUDE_SEED_DATA=true npm run db:migrate
 ```
 
 Le workspace est relié au projet Neon `KayJob` (`green-smoke-94867582`) et le MCP Neon est configuré pour Codex dans `.codex/config.toml`.

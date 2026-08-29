@@ -22,6 +22,7 @@ Le serveur autorise les requêtes CORS du site web local et les headers nécessa
 - `POST /api/auth/verify-otp`
 - `GET /api/services`
 - `GET /api/profiles/:pseudo`
+- `GET /api/me/portfolio`
 - `POST /api/me/profile`
 - `POST /api/me/portfolio`
 - `POST /api/uploads/presign`
@@ -43,7 +44,20 @@ Le serveur autorise les requêtes CORS du site web local et les headers nécessa
 - `POST /api/orders/:id/review`
 - `POST /api/orders/:id/messages`
 - `GET /api/admin/overview`
+- `GET /api/admin/disputes`
+- `POST /api/admin/disputes/:id/resolve`
+- `POST /api/admin/orders/:id/release`
+- `POST /api/admin/orders/:id/dispute`
+- `POST /api/admin/users/:id/verify`
+- `POST /api/admin/users/:id/reject`
+- `GET /api/admin/withdrawals`
+- `POST /api/admin/withdrawals/:id/pay`
+- `POST /api/admin/withdrawals/:id/reject`
 - `POST /api/providers/withdraw`
+
+## Paiement
+
+Le paiement utilise SenePay si `SENE_PAY_PUBLIC_KEY` et `SENE_PAY_SECRET_KEY` sont définies. `POST /api/orders/:id/pay` crée une référence KayJob, vérifie que la commande appartient au client connecté, enregistre l'initiation dans `payment_events`, puis redirige vers `SENE_PAY_CHECKOUT_URL` si cette variable est définie. Le webhook `/api/webhooks/payments/senepay` reste responsable du passage en `escrowed`.
 
 Le job de libération automatique se lance avec `npm run api:release-expired`. Il utilise un verrou advisory PostgreSQL pour empêcher deux exécutions concurrentes. En production VPS, installer la planification toutes les 5 minutes avec :
 
@@ -57,4 +71,4 @@ Le modèle cron est aussi versionné dans `deploy/kayjob-release-expired.cron`. 
 
 Le fichier `render.yaml` crée le service API et un Cron Job Render toutes les 5 minutes. Dans Render, choisir **New > Blueprint**, connecter le dépôt GitHub, puis renseigner les variables marquées `sync: false` dans les deux services. Le Cron Job ne nécessite que `DATABASE_URL`; il exécute `npm run api:release-expired` et ne dépend pas du service web.
 
-Le provider `mock` a été supprimé. Les tests locaux utilisent les données persistantes de `database/migrations/006_local_test_data.sql`. Wave, Orange Money et Yas doivent être branchés derrière l’adaptateur avec vérification de signature et credentials sandbox/production officiels.
+Le provider `mock` a été supprimé. Les migrations locales de seed sont ignorées par défaut et les anciens comptes samples sont désactivés par `009_disable_sample_accounts.sql`. Wave, Orange Money et Yas doivent être branchés derrière l’adaptateur avec vérification de signature et credentials sandbox/production officiels.

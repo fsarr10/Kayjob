@@ -1,53 +1,53 @@
 import { Activity, ShieldAlert } from "lucide-react-native";
+import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { AccentCard, Badge, Card, Metric, Page, Screen, SectionTitle, styles as shared } from "../../src/components";
-import { adminStats, cities, verificationQueue } from "../../src/data";
-import { colors, radii, space } from "../../src/theme";
+import { AccentCard, Card, Metric, Page, Screen, SectionTitle, styles as shared } from "../../src/components";
+import { api } from "../../src/api";
+import { colors, space } from "../../src/theme";
+
+type AdminOverview = {
+  users: number;
+  orders: Array<{ status: string; count: number }>;
+  openDisputes: number;
+  heldVolumeXof: number;
+};
 
 export default function AdminScreen() {
+  const [overview, setOverview] = useState<AdminOverview | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    api<AdminOverview>("/api/admin/overview").then(setOverview).catch((nextError) => setError(nextError instanceof Error ? nextError.message : "Accès admin impossible"));
+  }, []);
+
   return (
     <Screen>
       <ScrollView showsVerticalScrollIndicator={false}>
         <Page>
-          <SectionTitle title="Admin" action="National" />
+          <SectionTitle title="Admin" action="API" />
           <AccentCard icon="admin">
             <Text style={local.heroTitle}>Pilotage national KayJob.</Text>
-            <Text style={local.heroCopy}>Vérifications, escrow, litiges et performance par région depuis un seul espace.</Text>
+            <Text style={local.heroCopy}>Cet écran lit uniquement les métriques renvoyées par le backend connecté à Neon.</Text>
           </AccentCard>
 
-          <View style={local.stats}>
-            {adminStats.map((stat, index) => (
-              <Metric key={stat.label} value={stat.value} label={stat.label} tone={index === 0 ? "green" : index === 2 ? "blue" : "default"} />
-            ))}
-          </View>
+          {error ? <Card><View style={local.panelHead}><ShieldAlert color={colors.coral} size={21} /><Text style={local.title}>Accès indisponible</Text></View><Text style={shared.meta}>{error}</Text></Card> : null}
 
-          <Card>
-            <View style={local.panelHead}>
-              <ShieldAlert color={colors.coral} size={21} />
-              <Text style={local.title}>Vérifications à traiter</Text>
-            </View>
-            {verificationQueue.map((item) => (
-              <View key={item} style={local.queueItem}>
-                <Text style={local.dot}>•</Text>
-                <Text style={shared.meta}>{item}</Text>
+          {overview ? (
+            <>
+              <View style={local.stats}>
+                <Metric value={String(overview.users)} label="utilisateurs" tone="green" />
+                <Metric value={String(overview.openDisputes)} label="litiges ouverts" />
+                <Metric value={`${Number(overview.heldVolumeXof).toLocaleString("fr-FR")} FCFA`} label="volume bloqué" tone="blue" />
               </View>
-            ))}
-          </Card>
-
-          <Card>
-            <View style={local.panelHead}>
-              <Activity color={colors.green} size={21} />
-              <Text style={local.title}>Couverture Sénégal</Text>
-            </View>
-            <View style={local.badges}>
-              {cities.map((city) => <Badge key={city} label={city} tone="blue" />)}
-            </View>
-          </Card>
-
-          <Card>
-            <Text style={local.title}>Règles critiques</Text>
-            <Text style={shared.meta}>Documents privés, badge public, escrow, litiges modérés et commissions configurables.</Text>
-          </Card>
+              <Card>
+                <View style={local.panelHead}>
+                  <Activity color={colors.green} size={21} />
+                  <Text style={local.title}>Commandes par statut</Text>
+                </View>
+                {overview.orders.map((item) => <Text key={item.status} style={shared.meta}>{item.status} · {item.count}</Text>)}
+              </Card>
+            </>
+          ) : null}
         </Page>
       </ScrollView>
     </Screen>
@@ -59,8 +59,5 @@ const local = StyleSheet.create({
   heroCopy: { color: "#dfe8e4", lineHeight: 21 },
   stats: { flexDirection: "row", gap: 10 },
   panelHead: { flexDirection: "row", alignItems: "center", gap: space.sm },
-  title: { fontSize: 17, fontWeight: "900", color: colors.ink },
-  queueItem: { minHeight: 34, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 10, borderRadius: radii.xs, backgroundColor: colors.surfaceSoft },
-  dot: { color: colors.green, fontWeight: "900" },
-  badges: { flexDirection: "row", flexWrap: "wrap", gap: 8 }
+  title: { fontSize: 17, fontWeight: "900", color: colors.ink }
 });

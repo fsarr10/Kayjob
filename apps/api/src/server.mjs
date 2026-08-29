@@ -100,8 +100,13 @@ function senePayConfig() {
     publicKey,
     secretKey,
     baseUrl: process.env.SENE_PAY_BASE_URL || "https://api.sene-pay.com",
+    checkoutUrl: process.env.SENE_PAY_CHECKOUT_URL || "",
     webhookSecret: process.env.SENE_PAY_WEBHOOK_SECRET || secretKey
   };
+}
+
+function publicApiUrl(req) {
+  return (process.env.PUBLIC_API_URL || `${req.headers["x-forwarded-proto"] || "http"}://${req.headers.host || "localhost"}`).replace(/\/$/, "");
 }
 
 async function requestOtp(body) {
@@ -168,13 +173,84 @@ async function confirmWithdrawal2fa(req, withdrawalId, body) {
 
 async function authenticatedUserId(req) {
   const value = req.headers["x-user-id"];
-  if (process.env.NODE_ENV !== "production" && value && /^\d+$/.test(value)) return Number(value);
+  if (process.env.NODE_ENV !== "production" && value && /^\d+$/.test(value)) {
+    const devUser = await pool.query("SELECT id FROM users WHERE id = $1 AND is_active = true", [Number(value)]);
+    if (!devUser.rowCount) throw Object.assign(new Error("Invalid or disabled development user"), { statusCode: 401 });
+    return Number(value);
+  }
   const authorization = String(req.headers.authorization || "");
   const token = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
   if (!token) throw Object.assign(new Error("Authentication required"), { statusCode: 401 });
-  const result = await pool.query("SELECT user_id FROM auth_sessions WHERE token_hash = $1 AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP", [hash(token)]);
+  const result = await pool.query("SELECT s.user_id FROM auth_sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > CURRENT_TIMESTAMP AND u.is_active = true", [hash(token)]);
   if (!result.rowCount) throw Object.assign(new Error("Invalid or expired session"), { statusCode: 401 });
   return result.rows[0].user_id;
+}
+
+async function authenticatedUser(req) {
+  const userId = await authenticatedUserId(req);
+  const result = await pool.query("SELECT id, full_name, email, phone, role, is_active, verification_status FROM users WHERE id = $1", [userId]);
+  if (!result.rowCount || result.rows[0].is_active === false) throw Object.assign(new Error("Account disabled"), { statusCode: 403 });
+  return result.rows[0];
+}
+
+async function requireAdmin(req) {
+  const user = await authenticatedUser(req);
+  if (user.role !== "admin") throw Object.assign(new Error("Admin role required"), { statusCode: 403 });
+  return user;
+}
+
+async function releaseOrderToProvider(db, order, source, actorId = null) {
+  const providerAmount = Number(order.amount_net_provider || order.net_amount || 0);
+  const commissionAmount = Number(order.commission_amount || 0);
+  if (!providerAmount || providerAmount <= 0) throw Object.assign(new Error("Invalid provider amount"), { statusCode: 409 });
+  await db.query("UPDATE orders SET status = 'completed_released', review_deadline_at = CURRENT_TIMESTAMP, released_at = CURRENT_TIMESTAMP WHERE id = $1", [order.id]);
+  await db.query("INSERT INTO wallets (user_id, available_xof) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET available_xof = wallets.available_xof + EXCLUDED.available_xof, updated_at = CURRENT_TIMESTAMP", [order.provider_id, providerAmount]);
+  await db.query(`INSERT INTO transactions (order_id, user_id, kind, direction, amount_xof, idempotency_key, metadata)
+    VALUES ($1, $2, 'release', 'credit', $3, $4, $5::jsonb), ($1, $2, 'commission', 'debit', $6, $7, $8::jsonb)
+    ON CONFLICT (idempotency_key) DO NOTHING`,
+    [order.id, order.provider_id, providerAmount, `release:${order.id}`, JSON.stringify({ source, actorId }), commissionAmount, `commission:${order.id}`, JSON.stringify({ source, actorId })]);
+}
+
+async function createPaymentIntent(req, orderId) {
+  const clientId = await authenticatedUserId(req);
+  const provider = senePayConfig();
+  if (!provider) throw Object.assign(new Error("SenePay is not configured. Set SENE_PAY_PUBLIC_KEY and SENE_PAY_SECRET_KEY before paying."), { statusCode: 503 });
+  const db = await pool.connect();
+  try {
+    await db.query("BEGIN");
+    const result = await db.query("SELECT id, client_id, status, amount_total, gross_amount, payment_reference FROM orders WHERE id = $1 AND client_id = $2 FOR UPDATE", [orderId, clientId]);
+    if (!result.rowCount) throw Object.assign(new Error("Order not found"), { statusCode: 404 });
+    const order = result.rows[0];
+    if (!["awaiting_payment", "escrowed"].includes(order.status)) throw Object.assign(new Error("Order is not awaiting payment"), { statusCode: 409 });
+    const amount = Number(order.amount_total || order.gross_amount || 0);
+    if (!amount || amount <= 0) throw Object.assign(new Error("Invalid payment amount"), { statusCode: 409 });
+    const reference = order.payment_reference || `KJ-${order.id}-${randomUUID().slice(0, 8)}`;
+    await db.query("UPDATE orders SET payment_provider = 'senepay', payment_reference = $1 WHERE id = $2", [reference, order.id]);
+    await db.query(`INSERT INTO payment_events (provider, provider_event_id, provider_reference, event_type, payload, signature_valid)
+      VALUES ('senepay', $1, $2, 'payment.initiated', $3::jsonb, true)
+      ON CONFLICT (provider, provider_event_id) DO NOTHING`, [`init:${reference}`, reference, JSON.stringify({ orderId: order.id, amount, currency: "XOF" })]);
+    await db.query("COMMIT");
+
+    const payload = {
+      amount,
+      currency: "XOF",
+      reference,
+      description: `Commande KayJob ${order.id}`,
+      callbackUrl: process.env.PAYMENT_CALLBACK_URL || process.env.PUBLIC_WEB_URL || "",
+      webhookUrl: `${publicApiUrl(req)}/api/webhooks/payments/senepay`
+    };
+    if (provider.checkoutUrl) {
+      const response = await fetch(provider.checkoutUrl, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${provider.secretKey}` },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw Object.assign(new Error(data.error || data.message || "SenePay checkout failed"), { statusCode: 502 });
+      return { provider: "senepay", reference, amountXof: amount, checkoutUrl: data.checkoutUrl || data.paymentUrl || data.url || null };
+    }
+    return { provider: "senepay", publicKey: provider.publicKey, baseUrl: provider.baseUrl, reference, amountXof: amount, mode: process.env.NODE_ENV === "production" ? "live" : "test", ready: true };
+  } catch (error) { await db.query("ROLLBACK").catch(() => {}); throw error; } finally { db.release(); }
 }
 
 async function createOrder(req, body) {
@@ -196,6 +272,38 @@ async function createOrder(req, body) {
     await client.query("COMMIT");
     return order.rows[0];
   } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
+}
+
+async function createService(req, body) {
+  const userId = await authenticatedUserId(req);
+  const title = String(body.title || "").trim();
+  const description = String(body.description || body.title || "").trim();
+  const deliveryMode = String(body.deliveryMode || body.delivery_mode || "remote");
+  const startingPrice = Number(body.startingPrice ?? body.starting_price ?? body.price);
+  const deliveryDays = Number(body.deliveryDays ?? body.delivery_days ?? 3);
+  const categoryName = String(body.category || "").trim();
+  if (!title || !description || !["remote", "onsite", "both"].includes(deliveryMode) || !Number.isInteger(startingPrice) || startingPrice <= 0 || !Number.isInteger(deliveryDays) || deliveryDays <= 0) {
+    throw Object.assign(new Error("title, description, deliveryMode, startingPrice and deliveryDays are required"), { statusCode: 422 });
+  }
+  const db = await pool.connect();
+  try {
+    await db.query("BEGIN");
+    const profile = await db.query(`INSERT INTO student_profiles (user_id, headline, bio, availability)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (user_id) DO UPDATE SET headline = COALESCE(student_profiles.headline, EXCLUDED.headline)
+      RETURNING id`, [userId, title, description, body.availability || "Disponible"]);
+    await db.query("UPDATE users SET can_sell = true, role = CASE WHEN role = 'client' THEN 'both' ELSE role END WHERE id = $1", [userId]);
+    let categoryId = body.categoryId || body.category_id || null;
+    if (!categoryId && categoryName) {
+      const category = await db.query("INSERT INTO categories (name) VALUES ($1) ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id", [categoryName]);
+      categoryId = category.rows[0].id;
+    }
+    const saved = await db.query(`INSERT INTO services (profile_id, category_id, title, description, delivery_mode, starting_price, delivery_days)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id, title, description, delivery_mode, starting_price, delivery_days`, [profile.rows[0].id, categoryId, title, description, deliveryMode, startingPrice, deliveryDays]);
+    await db.query("COMMIT");
+    return saved.rows[0];
+  } catch (error) { await db.query("ROLLBACK"); throw error; } finally { db.release(); }
 }
 
 async function paymentWebhook(req, provider, body) {
@@ -242,9 +350,13 @@ async function route(req, res) {
   if (req.method === "POST" && path === "/api/auth/request-otp") return json(res, 200, { data: await requestOtp(await readBody(req)) });
   if (req.method === "POST" && path === "/api/auth/verify-otp") return json(res, 200, { data: await verifyOtp(await readBody(req)) });
   if (req.method === "GET" && path === "/api/services") {
-    const result = await pool.query(`SELECT s.id, s.title, s.description, s.delivery_mode, s.starting_price, sp.sama_score, u.full_name, u.pseudo, u.avatar_url, c.name AS category, ci.name AS city
+    const result = await pool.query(`SELECT s.id, s.title, s.description, s.delivery_mode, s.starting_price, sp.sama_score, u.id AS user_id, u.full_name, u.pseudo, u.avatar_url, u.verification_status, c.name AS category, ci.name AS city, COALESCE(portfolio.items, '[]'::jsonb) AS portfolio
       FROM services s JOIN student_profiles sp ON sp.id = s.profile_id JOIN users u ON u.id = sp.user_id LEFT JOIN categories c ON c.id = s.category_id LEFT JOIN cities ci ON ci.id = u.city_id
-      WHERE s.is_active = true ORDER BY sp.sama_score DESC, s.starting_price ASC`);
+      LEFT JOIN LATERAL (
+        SELECT jsonb_agg(jsonb_build_object('id', pi.id, 'title', pi.title, 'description', pi.description, 'media_url', pi.media_url, 'external_url', pi.external_url, 'item_type', pi.item_type, 'created_at', pi.created_at) ORDER BY pi.created_at DESC) AS items
+        FROM portfolio_items pi WHERE pi.profile_id = sp.id
+      ) portfolio ON true
+      WHERE s.is_active = true AND u.is_active = true ORDER BY sp.sama_score DESC, s.starting_price ASC`);
     return json(res, 200, { data: result.rows });
   }
   if (req.method === "POST" && path === "/api/uploads/presign") {
@@ -256,9 +368,9 @@ async function route(req, res) {
     return json(res, 200, { data: { key, contentType, expiresIn: 900, uploadUrl: await signedUpload(key, contentType) } });
   }
   const profile = path.match(/^\/api\/profiles\/([a-z0-9_-]+)$/i);
-  if (req.method === "GET" && profile) {
+	  if (req.method === "GET" && profile) {
     const result = await pool.query(`SELECT u.id, u.full_name, u.pseudo, u.avatar_url, u.verification_status, ci.name AS city, sp.headline, sp.bio, sp.availability, sp.sama_score
-      FROM users u LEFT JOIN cities ci ON ci.id = u.city_id LEFT JOIN student_profiles sp ON sp.user_id = u.id WHERE lower(u.pseudo) = lower($1)`, [profile[1]]);
+      FROM users u LEFT JOIN cities ci ON ci.id = u.city_id LEFT JOIN student_profiles sp ON sp.user_id = u.id WHERE lower(u.pseudo) = lower($1) AND u.is_active = true`, [profile[1]]);
     if (!result.rowCount) return json(res, 404, { error: "Profile not found" });
     const user = result.rows[0];
     const [services, portfolio, reviews] = await Promise.all([
@@ -266,9 +378,22 @@ async function route(req, res) {
       pool.query("SELECT id, title, description, media_url, external_url, item_type, created_at FROM portfolio_items WHERE profile_id = (SELECT id FROM student_profiles WHERE user_id = $1) ORDER BY created_at DESC", [user.id]),
       pool.query("SELECT r.rating, r.comment, r.created_at, u.full_name AS reviewer FROM reviews r JOIN users u ON u.id = r.reviewer_id WHERE r.reviewee_id = $1 ORDER BY r.created_at DESC", [user.id])
     ]);
+	    return json(res, 200, { data: { ...user, services: services.rows, portfolio: portfolio.rows, reviews: reviews.rows } });
+	  }
+  if (req.method === "GET" && path === "/api/me/portfolio") {
+    const currentUser = await authenticatedUserId(req);
+    const result = await pool.query(`SELECT u.id, u.full_name, u.pseudo, u.avatar_url, u.verification_status, ci.name AS city, sp.id AS profile_id, sp.headline, sp.bio, sp.availability, sp.sama_score
+      FROM users u LEFT JOIN cities ci ON ci.id = u.city_id LEFT JOIN student_profiles sp ON sp.user_id = u.id WHERE u.id = $1`, [currentUser]);
+    if (!result.rowCount) return json(res, 404, { error: "Profile not found" });
+    const user = result.rows[0];
+    const [services, portfolio, reviews] = await Promise.all([
+      pool.query("SELECT id, title, description, delivery_mode, starting_price, delivery_days FROM services WHERE profile_id = $1 AND is_active = true ORDER BY id DESC", [user.profile_id]),
+      pool.query("SELECT id, title, description, media_url, external_url, item_type, created_at FROM portfolio_items WHERE profile_id = $1 ORDER BY created_at DESC", [user.profile_id]),
+      pool.query("SELECT r.rating, r.comment, r.created_at, reviewer.full_name AS reviewer FROM reviews r JOIN users reviewer ON reviewer.id = r.reviewer_id WHERE r.reviewee_id = $1 ORDER BY r.created_at DESC", [currentUser])
+    ]);
     return json(res, 200, { data: { ...user, services: services.rows, portfolio: portfolio.rows, reviews: reviews.rows } });
   }
-  if (req.method === "POST" && path === "/api/me/portfolio") {
+	  if (req.method === "POST" && path === "/api/me/portfolio") {
     const currentUser = await authenticatedUserId(req); const body = await readBody(req);
     if (!body.title || !body.itemType) throw Object.assign(new Error("title and itemType are required"), { statusCode: 422 });
     const saved = await pool.query(`INSERT INTO portfolio_items (profile_id, title, description, media_url, external_url, item_type)
@@ -285,9 +410,11 @@ async function route(req, res) {
     await pool.query("UPDATE users SET can_sell = true, role = CASE WHEN role = 'client' THEN 'both' ELSE role END WHERE id = $1", [currentUser]);
     return json(res, 200, { data: saved.rows[0] });
   }
+  if (req.method === "POST" && path === "/api/me/services") return json(res, 201, { data: await createService(req, await readBody(req)) });
   if (req.method === "GET" && path === "/api/missions") {
-    const result = await pool.query(`SELECT m.id, m.title, m.description, m.delivery_mode, m.budget_max, m.is_open, u.full_name AS client_name, c.name AS category, ci.name AS city
-      FROM missions m JOIN users u ON u.id = m.client_id LEFT JOIN categories c ON c.id = m.category_id LEFT JOIN cities ci ON ci.id = m.city_id WHERE m.is_open = true ORDER BY m.id DESC`);
+    const result = await pool.query(`SELECT m.id, m.title, m.description, m.delivery_mode, m.budget_max, m.is_open, u.full_name AS client_name, c.name AS category, ci.name AS city, COUNT(o.id)::int AS offers
+      FROM missions m JOIN users u ON u.id = m.client_id LEFT JOIN categories c ON c.id = m.category_id LEFT JOIN cities ci ON ci.id = m.city_id LEFT JOIN offers o ON o.mission_id = m.id
+      WHERE m.is_open = true AND u.is_active = true GROUP BY m.id, u.full_name, c.name, ci.name ORDER BY m.id DESC`);
     return json(res, 200, { data: result.rows });
   }
   if (req.method === "POST" && path === "/api/missions") {
@@ -321,23 +448,10 @@ async function route(req, res) {
   if (req.method === "POST" && path === "/api/orders") return json(res, 201, { data: await createOrder(req, await readBody(req)) });
   const webhook = path.match(/^\/api\/webhooks\/payments\/(senepay)$/);
   if (req.method === "POST" && webhook) return json(res, 200, { data: await paymentWebhook(req, webhook[1], await readBody(req)) });
-  const payment = path.match(/^\/api\/orders\/(\d+)\/pay$/);
-  if (req.method === "POST" && payment) {
-    await authenticatedUserId(req);
-    const provider = senePayConfig();
-    if (!provider) {
-      return json(res, 503, { error: "SenePay is not configured. Set SENE_PAY_PUBLIC_KEY and SENE_PAY_SECRET_KEY before paying." });
-    }
-    return json(res, 200, {
-      data: {
-        provider: "senepay",
-        publicKey: provider.publicKey,
-        baseUrl: provider.baseUrl,
-        mode: process.env.NODE_ENV === "production" ? "live" : "test",
-        ready: true
-      }
-    });
-  }
+	  const payment = path.match(/^\/api\/orders\/(\d+)\/pay$/);
+	  if (req.method === "POST" && payment) {
+	    return json(res, 200, { data: await createPaymentIntent(req, Number(payment[1])) });
+	  }
   const finalDelivery = path.match(/^\/api\/orders\/(\d+)\/deliver-final$/);
   if (req.method === "POST" && finalDelivery) {
     const providerId = await authenticatedUserId(req);
@@ -366,11 +480,8 @@ async function route(req, res) {
       const order = result.rows[0];
       assertTransition(order.status, "client_review");
       assertTransition("client_review", "completed_released");
-      await db.query("UPDATE orders SET status = 'completed_released', review_deadline_at = CURRENT_TIMESTAMP, released_at = CURRENT_TIMESTAMP WHERE id = $1", [order.id]);
-      await db.query(`INSERT INTO transactions (order_id, user_id, kind, direction, amount_xof, idempotency_key, metadata)
-        VALUES ($1, $2, 'release', 'credit', $3, $4, $5::jsonb), ($1, $2, 'commission', 'debit', $6, $7, $8::jsonb)`,
-        [order.id, order.provider_id, order.amount_net_provider || order.net_amount, `release:${order.id}`, JSON.stringify({ source: "client_validation" }), order.commission_amount, `commission:${order.id}`, JSON.stringify({ source: "client_validation" })]);
-      await db.query("COMMIT");
+	      await releaseOrderToProvider(db, order, "client_validation", clientId);
+	      await db.query("COMMIT");
       return json(res, 200, { data: { orderId: order.id, status: "completed_released" } });
     } catch (error) { await db.query("ROLLBACK"); throw error; } finally { db.release(); }
   }
@@ -400,25 +511,132 @@ async function route(req, res) {
     if (!saved.rowCount) return json(res, 409, { error: "Only the client of a released order can review" });
     return json(res, 201, { data: saved.rows[0] });
   }
-  if (req.method === "GET" && path === "/api/admin/overview") {
-    const adminId = await authenticatedUserId(req);
-    const admin = await pool.query("SELECT role FROM users WHERE id = $1 AND is_active = true", [adminId]);
-    if (admin.rows[0]?.role !== "admin") return json(res, 403, { error: "Admin role required" });
-    const [users, orders, disputes, volume] = await Promise.all([
-      pool.query("SELECT count(*)::int AS count FROM users"),
+	  if (req.method === "GET" && path === "/api/admin/overview") {
+	    await requireAdmin(req);
+	    const [users, orders, disputes, volume] = await Promise.all([
+	      pool.query("SELECT count(*)::int AS count FROM users"),
       pool.query("SELECT status, count(*)::int AS count FROM orders GROUP BY status ORDER BY status"),
       pool.query("SELECT count(*)::int AS count FROM disputes WHERE status = 'open'"),
       pool.query("SELECT COALESCE(sum(amount_xof), 0)::int AS total_xof FROM transactions WHERE kind = 'hold'")
     ]);
-    return json(res, 200, { data: { users: users.rows[0].count, orders: orders.rows, openDisputes: disputes.rows[0].count, heldVolumeXof: volume.rows[0].total_xof } });
+	    return json(res, 200, { data: { users: users.rows[0].count, orders: orders.rows, openDisputes: disputes.rows[0].count, heldVolumeXof: volume.rows[0].total_xof } });
+	  }
+  const adminUserVerify = path.match(/^\/api\/admin\/users\/(\d+)\/(verify|reject)$/);
+  if (req.method === "POST" && adminUserVerify) {
+    await requireAdmin(req);
+    const nextStatus = adminUserVerify[2] === "verify" ? "verified" : "rejected";
+    const saved = await pool.query("UPDATE users SET verification_status = $1 WHERE id = $2 RETURNING id, full_name, verification_status", [nextStatus, Number(adminUserVerify[1])]);
+    if (!saved.rowCount) return json(res, 404, { error: "User not found" });
+    return json(res, 200, { data: saved.rows[0] });
   }
-  if (req.method === "POST" && path === "/api/providers/withdraw") {
-    const providerId = await authenticatedUserId(req); const body = await readBody(req);
-    if (!body.provider || !body.phone || !Number.isInteger(body.amountXof) || body.amountXof <= 0) throw Object.assign(new Error("provider, phone and positive amountXof are required"), { statusCode: 422 });
-    const wallet = await pool.query("SELECT available_xof FROM wallets WHERE user_id = $1", [providerId]);
-    if (!wallet.rowCount || wallet.rows[0].available_xof < body.amountXof) return json(res, 409, { error: "Insufficient available balance" });
-    const saved = await pool.query("INSERT INTO withdrawal_requests (user_id, provider, phone, amount_xof) VALUES ($1, $2, $3, $4) RETURNING id, status, amount_xof", [providerId, body.provider, body.phone, body.amountXof]);
-    return json(res, 202, { data: saved.rows[0], next: "2FA verification and provider payout review" });
+  const adminOrderRelease = path.match(/^\/api\/admin\/orders\/(\d+)\/release$/);
+  if (req.method === "POST" && adminOrderRelease) {
+    const admin = await requireAdmin(req);
+    const db = await pool.connect();
+    try {
+      await db.query("BEGIN");
+      const result = await db.query(`SELECT o.*, sp.user_id AS provider_id FROM orders o JOIN student_profiles sp ON sp.id = o.profile_id WHERE o.id = $1 FOR UPDATE`, [Number(adminOrderRelease[1])]);
+      if (!result.rowCount) throw Object.assign(new Error("Order not found"), { statusCode: 404 });
+      const order = result.rows[0];
+      if (["completed_released", "dispute_resolved_client", "cancelled"].includes(order.status)) throw Object.assign(new Error("Order cannot be released"), { statusCode: 409 });
+      await releaseOrderToProvider(db, order, "admin_release", admin.id);
+      await db.query("INSERT INTO order_status_history (order_id, from_status, to_status, actor_id, reason) VALUES ($1, $2, 'completed_released', $3, $4)", [order.id, order.status, admin.id, "Admin release"]);
+      await db.query("COMMIT");
+      return json(res, 200, { data: { orderId: order.id, status: "completed_released" } });
+    } catch (error) { await db.query("ROLLBACK"); throw error; } finally { db.release(); }
+  }
+  const adminOrderDispute = path.match(/^\/api\/admin\/orders\/(\d+)\/dispute$/);
+  if (req.method === "POST" && adminOrderDispute) {
+    const admin = await requireAdmin(req); const body = await readBody(req);
+    const db = await pool.connect();
+    try {
+      await db.query("BEGIN");
+      const order = await db.query("SELECT id, status FROM orders WHERE id = $1 FOR UPDATE", [Number(adminOrderDispute[1])]);
+      if (!order.rowCount) throw Object.assign(new Error("Order not found"), { statusCode: 404 });
+      if (order.rows[0].status !== "dispute_opened") await db.query("UPDATE orders SET status = 'dispute_opened' WHERE id = $1", [Number(adminOrderDispute[1])]);
+      const saved = await db.query("INSERT INTO disputes (order_id, opened_by, reason) VALUES ($1, $2, $3) RETURNING id, status", [Number(adminOrderDispute[1]), admin.id, String(body.reason || "Litige ouvert par l'administration").trim()]);
+      await db.query("COMMIT");
+      return json(res, 201, { data: saved.rows[0] });
+    } catch (error) { await db.query("ROLLBACK"); throw error; } finally { db.release(); }
+  }
+  if (req.method === "GET" && path === "/api/admin/disputes") {
+    await requireAdmin(req);
+    const result = await pool.query(`SELECT d.id, d.order_id, d.status, d.reason, d.created_at, o.status AS order_status, o.amount_total, client.full_name AS client_name, provider.full_name AS provider_name
+      FROM disputes d JOIN orders o ON o.id = d.order_id JOIN users client ON client.id = o.client_id JOIN student_profiles sp ON sp.id = o.profile_id JOIN users provider ON provider.id = sp.user_id
+      WHERE d.status = 'open' ORDER BY d.created_at ASC LIMIT 100`);
+    return json(res, 200, { data: result.rows });
+  }
+  const adminDisputeResolve = path.match(/^\/api\/admin\/disputes\/(\d+)\/resolve$/);
+  if (req.method === "POST" && adminDisputeResolve) {
+    const admin = await requireAdmin(req); const body = await readBody(req);
+    if (!["client", "provider"].includes(body.winner)) throw Object.assign(new Error("winner must be client or provider"), { statusCode: 422 });
+    const db = await pool.connect();
+    try {
+      await db.query("BEGIN");
+      const result = await db.query(`SELECT d.id AS dispute_id, d.status AS dispute_status, o.*, sp.user_id AS provider_id
+        FROM disputes d JOIN orders o ON o.id = d.order_id JOIN student_profiles sp ON sp.id = o.profile_id WHERE d.id = $1 FOR UPDATE`, [Number(adminDisputeResolve[1])]);
+      if (!result.rowCount) throw Object.assign(new Error("Dispute not found"), { statusCode: 404 });
+      const order = result.rows[0];
+      if (order.dispute_status !== "open") throw Object.assign(new Error("Dispute is already resolved"), { statusCode: 409 });
+      if (body.winner === "provider") {
+        await releaseOrderToProvider(db, order, "dispute_provider", admin.id);
+        await db.query("UPDATE disputes SET status = 'resolved_provider' WHERE id = $1", [order.dispute_id]);
+      } else {
+        await db.query("UPDATE orders SET status = 'dispute_resolved_client', released_at = CURRENT_TIMESTAMP WHERE id = $1", [order.id]);
+        await db.query(`INSERT INTO transactions (order_id, user_id, kind, direction, amount_xof, idempotency_key, metadata)
+          VALUES ($1, $2, 'refund', 'credit', $3, $4, $5::jsonb) ON CONFLICT (idempotency_key) DO NOTHING`,
+          [order.id, order.client_id, Number(order.amount_total || order.gross_amount), `refund:${order.id}`, JSON.stringify({ source: "dispute_client", actorId: admin.id, reason: body.reason || null })]);
+        await db.query("UPDATE disputes SET status = 'resolved_client' WHERE id = $1", [order.dispute_id]);
+      }
+      await db.query("COMMIT");
+      return json(res, 200, { data: { disputeId: order.dispute_id, orderId: order.id, winner: body.winner } });
+    } catch (error) { await db.query("ROLLBACK"); throw error; } finally { db.release(); }
+  }
+	  if (req.method === "POST" && path === "/api/providers/withdraw") {
+	    const providerId = await authenticatedUserId(req); const body = await readBody(req);
+	    if (!body.provider || !body.phone || !Number.isInteger(body.amountXof) || body.amountXof <= 0) throw Object.assign(new Error("provider, phone and positive amountXof are required"), { statusCode: 422 });
+	    const db = await pool.connect();
+	    try {
+	      await db.query("BEGIN");
+	      const wallet = await db.query("SELECT available_xof FROM wallets WHERE user_id = $1 FOR UPDATE", [providerId]);
+	      if (!wallet.rowCount || wallet.rows[0].available_xof < body.amountXof) throw Object.assign(new Error("Insufficient available balance"), { statusCode: 409 });
+	      await db.query("UPDATE wallets SET available_xof = available_xof - $2, pending_xof = pending_xof + $2, updated_at = CURRENT_TIMESTAMP WHERE user_id = $1", [providerId, body.amountXof]);
+	      const saved = await db.query("INSERT INTO withdrawal_requests (user_id, provider, phone, amount_xof) VALUES ($1, $2, $3, $4) RETURNING id, status, amount_xof", [providerId, body.provider, body.phone, body.amountXof]);
+	      await db.query("COMMIT");
+	      return json(res, 202, { data: saved.rows[0], next: "2FA verification and provider payout review" });
+	    } catch (error) { await db.query("ROLLBACK"); throw error; } finally { db.release(); }
+	  }
+  if (req.method === "GET" && path === "/api/admin/withdrawals") {
+    await requireAdmin(req);
+    const result = await pool.query(`SELECT wr.id, wr.user_id, u.full_name, wr.provider, wr.phone, wr.amount_xof, wr.status, wr.provider_reference, wr.created_at, wr.processed_at
+      FROM withdrawal_requests wr JOIN users u ON u.id = wr.user_id ORDER BY wr.created_at DESC LIMIT 100`);
+    return json(res, 200, { data: result.rows });
+  }
+  const adminWithdrawalAction = path.match(/^\/api\/admin\/withdrawals\/(\d+)\/(pay|reject)$/);
+  if (req.method === "POST" && adminWithdrawalAction) {
+    const admin = await requireAdmin(req); const body = await readBody(req);
+    const db = await pool.connect();
+    try {
+      await db.query("BEGIN");
+      const result = await db.query("SELECT * FROM withdrawal_requests WHERE id = $1 FOR UPDATE", [Number(adminWithdrawalAction[1])]);
+      if (!result.rowCount) throw Object.assign(new Error("Withdrawal not found"), { statusCode: 404 });
+      const withdrawal = result.rows[0];
+      if (["paid", "rejected"].includes(withdrawal.status)) throw Object.assign(new Error("Withdrawal already closed"), { statusCode: 409 });
+      const wallet = await db.query("SELECT user_id, pending_xof FROM wallets WHERE user_id = $1 FOR UPDATE", [withdrawal.user_id]);
+      if (!wallet.rowCount || wallet.rows[0].pending_xof < withdrawal.amount_xof) throw Object.assign(new Error("Wallet pending balance mismatch"), { statusCode: 409 });
+      if (adminWithdrawalAction[2] === "pay") {
+        await db.query("UPDATE wallets SET pending_xof = pending_xof - $2, updated_at = CURRENT_TIMESTAMP WHERE user_id = $1", [withdrawal.user_id, withdrawal.amount_xof]);
+        await db.query("UPDATE withdrawal_requests SET status = 'paid', provider_reference = COALESCE($2, provider_reference), processed_at = CURRENT_TIMESTAMP WHERE id = $1", [withdrawal.id, body.providerReference || null]);
+        await db.query(`INSERT INTO transactions (user_id, kind, direction, amount_xof, provider, provider_reference, idempotency_key, metadata)
+          VALUES ($1, 'payout', 'debit', $2, $3, $4, $5, $6::jsonb) ON CONFLICT (idempotency_key) DO NOTHING`,
+          [withdrawal.user_id, withdrawal.amount_xof, withdrawal.provider, body.providerReference || withdrawal.provider_reference || null, `payout:${withdrawal.id}`, JSON.stringify({ actorId: admin.id })]);
+      } else {
+        await db.query("UPDATE wallets SET available_xof = available_xof + $2, pending_xof = pending_xof - $2, updated_at = CURRENT_TIMESTAMP WHERE user_id = $1", [withdrawal.user_id, withdrawal.amount_xof]);
+        await db.query("UPDATE withdrawal_requests SET status = 'rejected', processed_at = CURRENT_TIMESTAMP WHERE id = $1", [withdrawal.id]);
+      }
+      await db.query("COMMIT");
+      return json(res, 200, { data: { id: withdrawal.id, status: adminWithdrawalAction[2] === "pay" ? "paid" : "rejected" } });
+    } catch (error) { await db.query("ROLLBACK"); throw error; } finally { db.release(); }
   }
   const withdrawal2fa = path.match(/^\/api\/providers\/withdrawals\/(\d+)\/2fa$/);
   if (req.method === "POST" && withdrawal2fa) return json(res, 200, { data: await requestWithdrawal2fa(req, Number(withdrawal2fa[1])) });
@@ -474,9 +692,7 @@ async function route(req, res) {
     const order = await pool.query("SELECT id FROM orders WHERE id = $1 AND (client_id = $2 OR profile_id IN (SELECT id FROM student_profiles WHERE user_id = $2))", [orderId, viewerId]);
     if (!order.rowCount) throw Object.assign(new Error("Order not found or access denied"), { statusCode: 404 });
     let conversation = await pool.query("SELECT id FROM conversations WHERE order_id = $1 LIMIT 1", [orderId]);
-    if (!conversation.rowCount) {
-      conversation = await pool.query("INSERT INTO conversations (order_id) VALUES ($1) RETURNING id", [orderId]);
-    }
+    if (!conversation.rowCount) conversation = await pool.query("INSERT INTO conversations (order_id) VALUES ($1) ON CONFLICT (order_id) WHERE order_id IS NOT NULL DO UPDATE SET order_id = EXCLUDED.order_id RETURNING id", [orderId]);
     const rows = await pool.query(`SELECT m.id, m.sender_id, u.full_name AS sender_name, m.body, m.attachment_url, m.created_at
       FROM messages m JOIN users u ON u.id = m.sender_id
       WHERE m.conversation_id = $1 ORDER BY m.created_at ASC`, [conversation.rows[0].id]);
@@ -494,12 +710,13 @@ async function route(req, res) {
     const senderId = await authenticatedUserId(req); const body = await readBody(req); const safe = redactContactContent(String(body.body || "").trim());
     const attachmentUrl = String(body.attachmentUrl || body.attachment_url || "").trim();
     if (!safe.body && !attachmentUrl) throw Object.assign(new Error("Message body or attachment is required"), { statusCode: 422 });
-    let conversation = await pool.query("SELECT id FROM conversations WHERE order_id = $1 LIMIT 1", [Number(messages[1])]);
-    if (!conversation.rowCount) {
-      conversation = await pool.query("INSERT INTO conversations (order_id) VALUES ($1) RETURNING id", [Number(messages[1])]);
-    }
+    const orderId = Number(messages[1]);
+    const order = await pool.query("SELECT id FROM orders WHERE id = $1 AND (client_id = $2 OR profile_id IN (SELECT id FROM student_profiles WHERE user_id = $2))", [orderId, senderId]);
+    if (!order.rowCount) throw Object.assign(new Error("Order not found or access denied"), { statusCode: 404 });
+    let conversation = await pool.query("SELECT id FROM conversations WHERE order_id = $1 LIMIT 1", [orderId]);
+    if (!conversation.rowCount) conversation = await pool.query("INSERT INTO conversations (order_id) VALUES ($1) ON CONFLICT (order_id) WHERE order_id IS NOT NULL DO UPDATE SET order_id = EXCLUDED.order_id RETURNING id", [orderId]);
     const saved = await pool.query("INSERT INTO messages (conversation_id, sender_id, body, attachment_url) VALUES ($1, $2, $3, $4) RETURNING id, body, attachment_url, created_at", [conversation.rows[0].id, senderId, safe.body || "Pièce jointe", attachmentUrl || null]);
-    if (safe.flagged) await pool.query("INSERT INTO risk_events (user_id, order_id, event_type, severity, redacted_value) VALUES ($1, $2, 'contact_attempt', 'medium', $3)", [senderId, Number(messages[1]), safe.reason]);
+    if (safe.flagged) await pool.query("INSERT INTO risk_events (user_id, order_id, event_type, severity, redacted_value) VALUES ($1, $2, 'contact_attempt', 'medium', $3)", [senderId, orderId, safe.reason]);
     return json(res, 201, { data: {
       id: saved.rows[0].id,
       senderId,

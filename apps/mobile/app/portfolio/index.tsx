@@ -1,49 +1,68 @@
-import { ExternalLink, Image as ImageIcon, Link2 } from "lucide-react-native";
-import { Alert, Linking, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ExternalLink } from "lucide-react-native";
+import { useEffect, useState } from "react";
+import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { AccentCard, Avatar, Badge, Card, Page, PrimaryButton, Screen, SectionTitle, styles as shared } from "../../src/components";
-import { portfolio, services } from "../../src/data";
-import { colors, radii, space } from "../../src/theme";
+import { loadMyPortfolio, loadServices, type LivePortfolio, type LiveService } from "../../src/live-data";
+import { colors } from "../../src/theme";
 
 export default function PortfolioScreen() {
-  const student = services[0];
+  const [services, setServices] = useState<LiveService[]>([]);
+  const [portfolio, setPortfolio] = useState<LivePortfolio | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    Promise.all([loadServices(), loadMyPortfolio()]).then(([nextServices, nextPortfolio]) => {
+      setServices(nextPortfolio?.services.length ? nextPortfolio.services : nextServices);
+      setPortfolio(nextPortfolio);
+    }).catch((nextError) => setError(nextError instanceof Error ? nextError.message : "Chargement impossible"));
+  }, []);
 
   return (
     <Screen>
       <ScrollView showsVerticalScrollIndicator={false}>
         <Page>
-          <SectionTitle title="Portfolio public" action={`kayjob.sn/${student.pseudo}`} />
+          <SectionTitle title="Portfolio public" action="Base de données" />
           <AccentCard icon="portfolio">
-            <View style={local.profileTop}>
-              <Avatar name={student.name} size={62} />
-              <View style={local.main}>
-                <Text style={local.heroTitle}>{student.name}</Text>
-                <Text style={local.heroCopy}>{student.category} · {student.city} · {student.mode}</Text>
-              </View>
-            </View>
-            <View style={local.badges}>
-              <Badge label="Identité vérifiée" tone="dark" />
-              <Badge label={`SamaScore ${student.score}/100`} tone="amber" />
-              <Badge label={`${student.rating}/5`} />
-            </View>
+            <Text style={local.heroTitle}>Profils synchronisés KayJob.</Text>
+            <Text style={local.heroCopy}>Les services affichés ici viennent uniquement du backend connecté à Neon.</Text>
           </AccentCard>
 
-          <SectionTitle title="Réalisations" action="Image + lien" />
-          {portfolio.map((work) => (
-            <Card key={work.title}>
-              <View style={[local.preview, work.type === "Lien" ? local.linkPreview : local.imagePreview]}>
-                {work.type === "Lien" ? <Link2 color={colors.blue} size={26} /> : <ImageIcon color={colors.green} size={26} />}
-                <Text style={local.previewText}>{work.type}</Text>
-              </View>
-              <View style={local.workHead}>
+          {error ? <Text style={shared.meta}>{error}</Text> : null}
+          {!error && !services.length ? <Text style={shared.meta}>Aucun service publié pour le moment.</Text> : null}
+
+          {services.map((service) => (
+            <Card key={service.id}>
+              <View style={local.profileTop}>
+                <Avatar name={service.name} />
                 <View style={local.main}>
-                  <Text style={local.title}>{work.title}</Text>
-                  <Text style={shared.meta}>{work.detail}</Text>
+                  <Text style={local.title}>{service.title}</Text>
+                  <Text style={shared.meta}>{service.name} · {service.city} · {service.category}</Text>
                 </View>
                 <ExternalLink color={colors.green} size={19} />
               </View>
-              <PrimaryButton label="Voir la réalisation" icon="portfolio" onPress={() => work.type === "Lien" ? Linking.openURL("https://github.com/") : Alert.alert("Réalisation", work.detail)} />
+              <View style={local.badges}>
+                <Badge label={service.mode} />
+                <Badge label={`SamaScore ${service.score}/100`} tone="amber" />
+              </View>
+              <PrimaryButton label="Contacter via commande" icon="portfolio" onPress={() => Alert.alert("Commande requise", "Ouvre une commande synchronisée pour contacter ce talent.")} />
             </Card>
           ))}
+          {portfolio ? (
+            <Card>
+              <Text style={local.title}>{portfolio.headline}</Text>
+              {portfolio.bio ? <Text style={shared.meta}>{portfolio.bio}</Text> : null}
+              <View style={local.badges}>
+                <Badge label={`@${portfolio.pseudo}`} />
+                <Badge label={portfolio.city} tone="amber" />
+              </View>
+              {portfolio.items.length ? portfolio.items.map((item) => (
+                <View key={item.id} style={local.item}>
+                  <Text style={local.itemTitle}>{item.title}</Text>
+                  <Text style={shared.meta}>{item.description || item.type}</Text>
+                </View>
+              )) : <Text style={shared.meta}>Aucune réalisation publiée pour le moment.</Text>}
+            </Card>
+          ) : null}
         </Page>
       </ScrollView>
     </Screen>
@@ -53,13 +72,10 @@ export default function PortfolioScreen() {
 const local = StyleSheet.create({
   profileTop: { flexDirection: "row", alignItems: "center", gap: 12 },
   main: { flex: 1, gap: 3 },
-  heroTitle: { fontSize: 25, lineHeight: 31, fontWeight: "900", color: "#fff", letterSpacing: 0 },
-  heroCopy: { color: "#dfe8e4", lineHeight: 20 },
+  heroTitle: { fontSize: 24, lineHeight: 30, fontWeight: "900", color: "#fff", letterSpacing: 0 },
+  heroCopy: { color: "#dfe8e4", lineHeight: 21 },
   badges: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  preview: { height: 146, borderRadius: radii.lg, alignItems: "center", justifyContent: "center", gap: space.sm },
-  imagePreview: { backgroundColor: colors.mint },
-  linkPreview: { backgroundColor: colors.blueSoft },
-  previewText: { color: colors.ink, fontWeight: "900" },
-  workHead: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  item: { borderTopWidth: 1, borderTopColor: "#e2ebe7", paddingTop: 12, gap: 4 },
+  itemTitle: { fontWeight: "900", color: colors.ink },
   title: { fontSize: 18, fontWeight: "900", color: colors.ink, letterSpacing: 0 }
 });

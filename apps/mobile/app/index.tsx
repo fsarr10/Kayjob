@@ -14,7 +14,11 @@ export default function HomeScreen() {
   const [services, setServices] = useState<Awaited<ReturnType<typeof loadServices>>>([]);
   const [missions, setMissions] = useState<Awaited<ReturnType<typeof loadMissions>>>([]);
   const [orders, setOrders] = useState<Awaited<ReturnType<typeof loadOrders>>>([]);
-  useEffect(() => { Promise.all([loadServices(), loadMissions(), loadOrders()]).then(([nextServices, nextMissions, nextOrders]) => { setServices(nextServices); setMissions(nextMissions); setOrders(nextOrders); }).catch(() => undefined); }, []);
+  useEffect(() => {
+    loadServices().then(setServices).catch(() => undefined);
+    loadMissions().then(setMissions).catch(() => undefined);
+    loadOrders().then(setOrders).catch(() => undefined);
+  }, []);
   const topService = services[0];
 
   return (

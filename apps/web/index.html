@@ -3,14 +3,205 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="KayJob est la marketplace de talents et services pour trouver, commander et vendre des missions partout au Sénégal." />
-    <meta name="theme-color" content="#137a4b" />
-    <title>KayJob App</title>
+    <meta name="description" content="KayJob aide toute personne avec un talent ou une compétence à trouver des missions, vendre ses services et sécuriser des paiements au Sénégal." />
+    <meta name="theme-color" content="#0d8f61" />
+    <title>KayJob | Marketplace des talents et services</title>
     <link rel="icon" href="./assets/kayjob-logo.svg" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div class="app-shell">
+    <div id="landingPage" class="landing-page">
+      <header class="landing-header container">
+        <a class="brand" href="#top">
+          <img src="./assets/kayjob-logo.svg" alt="KayJob" />
+          <span>KayJob</span>
+        </a>
+        <nav class="landing-nav">
+          <a href="#solutions">Solutions</a>
+          <a href="#comment-ca-marche">Comment ça marche</a>
+          <a href="#talents">Talents</a>
+          <a href="#tarifs">Tarifs</a>
+        </nav>
+        <div class="header-actions">
+          <button class="ghost-button" id="showLogin">Se connecter</button>
+          <button class="primary-button" id="showSignup">Créer un compte</button>
+        </div>
+      </header>
+
+      <main class="container">
+        <section class="hero-section">
+          <div class="hero-copy">
+            <span class="eyebrow">Marketplace nationale</span>
+            <h1>KayJob</h1>
+            <p>
+              Trouvez un talent, publiez une mission ou vendez vos compétences avec un paiement protégé, des messages suivis et un portfolio relié à la base de données.
+            </p>
+            <div class="hero-actions">
+              <button class="primary-button" id="ctaCreateAccount">Créer un compte</button>
+              <button class="secondary-button" id="ctaBrowse">Découvrir les talents</button>
+            </div>
+            <ul class="hero-proof">
+              <li>Profils réels uniquement</li>
+              <li>Paiement séquestré</li>
+              <li>Litiges suivis par admin</li>
+            </ul>
+          </div>
+
+          <div class="hero-visual">
+            <div class="stats-card large">
+              <div class="stat-row">
+                <span class="status-dot"></span>
+                <span>Backend connecté</span>
+              </div>
+              <strong>Neon + Render</strong>
+              <p>Données synchronisées en temps réel à l’ouverture.</p>
+            </div>
+            <div class="mini-grid">
+              <div class="stats-card">
+                <strong>API</strong>
+                <span>Services et missions</span>
+              </div>
+              <div class="stats-card accent">
+                <strong>Admin</strong>
+                <span>Litiges et retraits</span>
+              </div>
+            </div>
+            <div class="floating-panel">
+              <div class="panel-header">
+                <span class="chip green">Escrow</span>
+                <span class="chip muted">Paiement protégé</span>
+              </div>
+              <div class="payment-line">
+                <span>Client</span>
+                <strong>Paiement vérifié</strong>
+              </div>
+              <div class="payment-line muted-row">
+                <span>Prestataire</span>
+                <strong>Reversement net</strong>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="feature-strip" id="solutions">
+          <div class="feature-card">
+            <span class="feature-icon">01</span>
+            <div>
+              <h3>Fast booking</h3>
+              <p>Publiez une mission ou commandez un service en quelques minutes.</p>
+            </div>
+          </div>
+          <div class="feature-card">
+            <span class="feature-icon">02</span>
+            <div>
+              <h3>Paiement sécurisé</h3>
+              <p>Le montant est protégé avant la livraison finale.</p>
+            </div>
+          </div>
+          <div class="feature-card">
+            <span class="feature-icon">03</span>
+            <div>
+              <h3>Portfolio public</h3>
+              <p>Montrez vos skills, réalisations et avis de clients.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="comment-ca-marche">
+          <div class="section-heading">
+            <span class="eyebrow">Comment ça marche</span>
+            <h2>Un parcours simple, transparent, fiable.</h2>
+          </div>
+          <div class="steps-grid">
+            <article class="step-card">
+              <span>01</span>
+              <h3>Créer un compte</h3>
+              <p>Inscrivez-vous avec votre email ou numéro de téléphone et un mot de passe.</p>
+            </article>
+            <article class="step-card">
+              <span>02</span>
+              <h3>Publier ou commander</h3>
+              <p>Créez une mission ou trouvez un prestataire selon votre besoin.</p>
+            </article>
+            <article class="step-card">
+              <span>03</span>
+              <h3>Payer en escrow</h3>
+              <p>Le client paie, le montant est bloqué jusqu’à validation.</p>
+            </article>
+            <article class="step-card">
+              <span>04</span>
+              <h3>Livraison sécurisée</h3>
+              <p>Le prestataire livre puis le client valide ou ouvre un litige.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section alt" id="talents">
+          <div class="section-heading">
+            <span class="eyebrow">Talents</span>
+            <h2>Des profils partout au Sénégal.</h2>
+          </div>
+          <div class="talent-grid">
+            <article class="profile-card">
+              <div class="avatar-sample green">A</div>
+              <h3>Design & identité</h3>
+              <p>Logos, affiches, charte graphique et support visuel.</p>
+            </article>
+            <article class="profile-card">
+              <div class="avatar-sample blue">M</div>
+              <h3>Développement</h3>
+              <p>Sites web, apps, dashboards, landing pages et SEO.</p>
+            </article>
+            <article class="profile-card">
+              <div class="avatar-sample gold">F</div>
+              <h3>Formation</h3>
+              <p>Cours particuliers, aide aux devoirs, correction de mémoires.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="tarifs">
+          <div class="section-heading">
+            <span class="eyebrow">Tarifs</span>
+            <h2>Une commission claire et juste.</h2>
+          </div>
+          <div class="pricing-grid">
+            <article class="price-card">
+              <h3>Commande</h3>
+              <div class="price">Escrow</div>
+              <p>Le client paie avant la livraison finale.</p>
+            </article>
+            <article class="price-card featured">
+              <div class="badge-price">Backend</div>
+              <h3>Commission</h3>
+              <div class="price">API</div>
+              <p>Le montant net prestataire est calculé côté serveur.</p>
+            </article>
+            <article class="price-card">
+              <h3>Retrait</h3>
+              <div class="price">Admin</div>
+              <p>Les fonds sont réservés puis validés avant payout.</p>
+            </article>
+          </div>
+        </section>
+      </main>
+
+      <footer class="landing-footer">
+        <div class="container footer-inner">
+          <div>
+            <a class="brand" href="#top">
+              <img src="./assets/kayjob-logo.svg" alt="KayJob" />
+              <span>KayJob</span>
+            </a>
+          </div>
+          <p>Marketplace des talents et services au Sénégal.</p>
+          <button class="primary-button" id="footerSignUp">Créer mon compte</button>
+        </div>
+      </footer>
+    </div>
+
+    <div id="appShell" class="app-shell hidden">
       <aside class="sidebar">
         <a class="brand" href="#dashboard">
           <img src="./assets/kayjob-logo.svg" alt="" />
@@ -34,6 +225,7 @@
             <h1 id="routeTitle">Tableau de bord</h1>
           </div>
           <div class="top-actions">
+            <span class="app-status" id="apiStatus">API</span>
             <button class="ghost" id="authButton">Mon compte</button>
             <button class="primary" id="quickMission">Publier une mission</button>
           </div>
@@ -42,11 +234,39 @@
       </div>
     </div>
 
+    <div id="authOverlay" class="auth-overlay hidden">
+      <div class="auth-modal">
+        <button class="close-auth" id="closeAuth" aria-label="Fermer">×</button>
+        <div class="auth-tabs">
+          <button class="auth-tab active" data-auth-mode="login">Se connecter</button>
+          <button class="auth-tab" data-auth-mode="signup">Créer un compte</button>
+        </div>
+        <form id="authForm" class="auth-form">
+          <div class="field-group hidden" id="fullNameGroup">
+            <label for="fullName">Nom complet</label>
+            <input id="fullName" name="fullName" type="text" placeholder="Votre nom complet" />
+          </div>
+          <div class="field-group">
+            <label for="accountEmail">Email ou téléphone</label>
+            <input id="accountEmail" name="accountEmail" type="text" placeholder="vous@exemple.com ou +221..." required />
+          </div>
+          <div class="field-group">
+            <label for="accountPassword">Mot de passe</label>
+            <input id="accountPassword" name="accountPassword" type="password" placeholder="••••••••" required />
+          </div>
+          <button class="primary-button auth-submit" type="submit">Continuer</button>
+          <p id="authStatus" class="auth-status" aria-live="polite"></p>
+        </form>
+      </div>
+    </div>
+
     <dialog id="modal">
       <form method="dialog" class="modal-card" id="modalForm"></form>
     </dialog>
 
-    <script>window.KAYJOB_API_URL = window.KAYJOB_API_URL || "";</script>
+    <script>
+      globalThis.KAYJOB_API_URL = globalThis.KAYJOB_API_URL || "__KAYJOB_API_URL__";
+    </script>
     <script src="./app.js"></script>
   </body>
 </html>
