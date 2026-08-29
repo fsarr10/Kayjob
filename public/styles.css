@@ -137,6 +137,41 @@ textarea { min-height: 92px; padding-top: 10px; resize: vertical; }
 .bubble { max-width: 72%; padding: 11px 13px; border-radius: 12px; background: #edf4ef; }
 .bubble.me { justify-self: end; color: #fff; background: var(--green); }
 .composer { display: grid; grid-template-columns: 1fr auto; gap: 10px; margin-top: 10px; }
+.chat-shell { display: grid; grid-template-columns: 310px minmax(0,1fr); min-height: 720px; border: 1px solid var(--line); border-radius: 22px; overflow: hidden; background: rgba(255,255,255,0.92); box-shadow: var(--shadow); }
+.chat-list { border-right: 1px solid var(--line); background: #f7faf8; }
+.chat-list-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 18px 16px; border-bottom: 1px solid var(--line); }
+.chat-list-header h2 { margin: 0; font-size: 20px; }
+.chat-thread { width: 100%; display: flex; align-items: flex-start; gap: 12px; border: 0; border-bottom: 1px solid rgba(232,237,242,0.8); background: transparent; text-align: left; padding: 14px 16px; cursor: pointer; }
+.chat-thread.active { background: rgba(19,122,75,0.06); }
+.chat-avatar { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(135deg, var(--green), var(--blue)); color: white; font-size: 12px; font-weight: 900; }
+.chat-avatar.large { width: 48px; height: 48px; }
+.chat-thread-body { flex: 1; min-width: 0; }
+.chat-thread-head, .chat-thread-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.chat-thread-head strong { font-size: 15px; }
+.chat-thread-head span, .chat-thread-meta, .chat-thread-body p { color: var(--muted); font-size: 12px; }
+.chat-thread-body p { margin: 6px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.status-pill { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.status-pill.online { background: var(--green); }
+.status-pill.offline { background: #b9c0bb; }
+.chat-pane { display: grid; grid-template-rows: auto 1fr auto auto; }
+.chat-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 20px; border-bottom: 1px solid var(--line); background: rgba(250,252,251,0.9); }
+.chat-header-user { display: flex; align-items: center; gap: 12px; }
+.chat-header-user h3 { margin: 0 0 4px; font-size: 18px; }
+.chat-header-user p { margin: 0; font-size: 12px; color: var(--muted); }
+.chat-header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.chat-messages { display: flex; flex-direction: column; gap: 12px; padding: 22px 20px; background: linear-gradient(180deg, #f8fbf9 0%, #ffffff 100%); overflow: auto; }
+.chat-message { display: flex; }
+.chat-message.me { justify-content: flex-end; }
+.chat-message.them { justify-content: flex-start; }
+.bubble-wrap { max-width: min(72%, 440px); border-radius: 18px; padding: 12px 14px; border: 1px solid var(--line); background: white; box-shadow: 0 8px 18px rgba(15,24,32,0.04); }
+.chat-message.me .bubble-wrap { background: linear-gradient(135deg, var(--green), #20a36d); border-color: transparent; color: white; }
+.chat-message.me .bubble-meta { color: rgba(255,255,255,.86); }
+.bubble-text { font-size: 14px; line-height: 1.5; white-space: pre-line; }
+.bubble-meta { display: flex; justify-content: flex-end; gap: 8px; font-size: 11px; margin-top: 6px; }
+.quick-replies { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 20px 14px; }
+.reply-pill { border: 1px solid var(--line); border-radius: 999px; background: #f3f9f5; color: var(--green-dark); padding: 9px 12px; font-size: 12px; font-weight: 800; cursor: pointer; }
+.chat-composer { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 10px; padding: 16px 20px 20px; border-top: 1px solid var(--line); background: #fff; }
+.chat-composer input { min-height: 46px; border: 1px solid var(--line); border-radius: 12px; padding: 0 14px; }
 dialog { border: 0; border-radius: 20px; padding: 0; box-shadow: 0 24px 80px rgba(0,0,0,.28); }
 dialog::backdrop { background: rgba(6,12,10,.52); backdrop-filter: blur(3px); }
 .modal-card { width: min(520px, calc(100vw - 32px)); display: grid; gap: 14px; padding: 22px; background: var(--surface); }

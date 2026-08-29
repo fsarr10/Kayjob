@@ -17,7 +17,7 @@ import {
   UserRound
 } from "lucide-react-native";
 import { ReactNode } from "react";
-import { Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Pressable, StyleProp, StyleSheet, Text, TextInput, TouchableOpacity, View, ViewStyle } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, radii, shadow, space } from "./theme";
 
@@ -73,8 +73,8 @@ export function TopBar({ title, subtitle, right = "bell" }: { title: string; sub
   );
 }
 
-export function Card({ children, elevated = true }: { children: ReactNode; elevated?: boolean }) {
-  return <View style={[styles.card, elevated ? shadow : null]}>{children}</View>;
+export function Card({ children, elevated = true, style }: { children: ReactNode; elevated?: boolean; style?: StyleProp<ViewStyle> }) {
+  return <View style={[styles.card, elevated ? shadow : null, style]}>{children}</View>;
 }
 
 export function AccentCard({ children, icon = "spark" }: { children: ReactNode; icon?: IconName }) {

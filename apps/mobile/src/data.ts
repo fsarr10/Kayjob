@@ -106,9 +106,9 @@ export const orders = [
 ];
 
 export const messages = [
-  { id: "msg-1", from: "Mamadou", text: "Je peux livrer la première version demain soir.", mine: false },
-  { id: "msg-2", from: "Client", text: "Parfait, j'ajoute le brief et les images.", mine: true },
-  { id: "msg-3", from: "KayJob", text: "Paiement reçu et bloqué en séquestre.", mine: false }
+  { id: "msg-1", from: "Mamadou", text: "Je peux livrer la première version demain soir.", mine: false, time: "09:12" },
+  { id: "msg-2", from: "Client", text: "Parfait, j'ajoute le brief et les images.", mine: true, time: "09:14" },
+  { id: "msg-3", from: "KayJob", text: "Paiement reçu et bloqué en séquestre.", mine: false, time: "09:16" }
 ];
 
 export const adminStats = [

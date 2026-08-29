@@ -38,12 +38,37 @@ const seed = {
     { id: "ord-4", serviceId: "srv-6", status: "in_progress", gross: 12000, commission: 1200, net: 10800 }
   ],
   messages: [
-    { orderId: "ord-1", me: false, text: "Bonjour, je peux livrer une première version demain." },
-    { orderId: "ord-1", me: true, text: "Parfait, j'envoie le brief et les couleurs." },
-    { orderId: "ord-2", me: false, text: "Le logo a été livré en formats SVG et PNG." },
-    { orderId: "ord-2", me: true, text: "Merci, j’ai validé la version finale." },
-    { orderId: "ord-3", me: false, text: "Les storys du lancement sont publiées ce soir." },
-    { orderId: "ord-3", me: true, text: "Très bien, je te réévalue dans 48h." }
+    {
+      orderId: "ord-1",
+      peer: "Mamadou Fall",
+      role: "Développeur web",
+      online: true,
+      items: [
+        { id: "m-1", me: false, text: "Bonjour, je peux livrer une première version demain.", time: "09:12" },
+        { id: "m-2", me: true, text: "Parfait, j'envoie le brief et les couleurs.", time: "09:14" },
+        { id: "m-3", me: false, text: "Très bien, je mets aussi le formulaire de contact.", time: "09:16" }
+      ]
+    },
+    {
+      orderId: "ord-2",
+      peer: "Awa Diop",
+      role: "Designer",
+      online: false,
+      items: [
+        { id: "m-4", me: false, text: "Le logo a été livré en formats SVG et PNG.", time: "Hier" },
+        { id: "m-5", me: true, text: "Merci, j’ai validé la version finale.", time: "Hier" }
+      ]
+    },
+    {
+      orderId: "ord-3",
+      peer: "Mariama Sarr",
+      role: "Community manager",
+      online: true,
+      items: [
+        { id: "m-6", me: false, text: "Les storys du lancement sont publiées ce soir.", time: "Lun" },
+        { id: "m-7", me: true, text: "Très bien, je te réévalue dans 48h.", time: "Lun" }
+      ]
+    }
   ],
   notifications: [
     "Paiement escrow confirmé.",
@@ -328,12 +353,66 @@ function messages() {
   const order = state.orders.find((item) => item.id === state.selectedOrderId) || state.orders[0];
   if (!order) return `<section class="panel"><h2>Messages</h2><p class="meta">Connecte-toi et ouvre une commande pour démarrer une conversation.</p></section>`;
   state.selectedOrderId = order.id;
-  const rows = state.messages.filter((message) => message.orderId === order.id);
+  const conversation = (state.messages || []).find((thread) => thread.orderId === order.id) || (state.messages || [])[0] || { orderId: order.id, peer: "Prestataire", role: "Partenaire", online: true, items: [] };
+  const service = state.services.find((item) => item.id === order.serviceId) || state.services[0];
+  const rows = conversation.items || [];
   return `
-    <section class="panel message-box">
-      <h2>${order.id} · ${orderStatus(order.status)}</h2>
-      ${rows.map((message) => `<div class="bubble ${message.me ? "me" : ""}">${message.text}</div>`).join("")}
-      <form class="composer" id="messageForm"><input id="messageText" placeholder="Écrire un message..." /><button class="primary">Envoyer</button></form>
+    <section class="chat-shell">
+      <aside class="chat-list">
+        <div class="chat-list-header">
+          <h2>Conversations</h2>
+          <button class="secondary" type="button">Nouveau</button>
+        </div>
+        ${(state.messages || []).map((thread) => {
+          const active = thread.orderId === order.id ? "active" : "";
+          const last = thread.items[thread.items.length - 1];
+          return `<button class="chat-thread ${active}" type="button" data-select-order="${thread.orderId}">
+            <div class="avatar chat-avatar">${(thread.peer || "P").split(" ").map((part) => part[0]).slice(0,2).join("").toUpperCase()}</div>
+            <div class="chat-thread-body">
+              <div class="chat-thread-head"><strong>${thread.peer}</strong><span>${last ? last.time : "maintenant"}</span></div>
+              <div class="chat-thread-meta"><span>${thread.role}</span><span class="status-pill ${thread.online ? "online" : "offline"}"></span></div>
+              <p>${last ? last.text : "Commencez la discussion"}</p>
+            </div>
+          </button>`;
+        }).join("")}
+      </aside>
+      <section class="chat-pane">
+        <header class="chat-header">
+          <div class="chat-header-user">
+            <div class="avatar chat-avatar large">${(conversation.peer || service?.name || "P").split(" ").map((part) => part[0]).slice(0,2).join("").toUpperCase()}</div>
+            <div>
+              <h3>${conversation.peer || service?.name || "Prestataire"}</h3>
+              <p>${conversation.online ? "En ligne" : "Dernière activité il y a 10 min"}</p>
+            </div>
+          </div>
+          <div class="chat-header-actions">
+            <button class="secondary" type="button">Appel</button>
+            <button class="secondary" type="button">Vidéos</button>
+            <button class="primary" type="button">Commande</button>
+          </div>
+        </header>
+
+        <div class="chat-messages">
+          ${rows.map((message) => `<div class="chat-message ${message.me ? "me" : "them"}">
+            <div class="bubble-wrap">
+              <div class="bubble-text">${message.text}</div>
+              <div class="bubble-meta"><span>${message.time}</span>${message.me ? '<span>✓✓</span>' : ''}</div>
+            </div>
+          </div>`).join("")}
+        </div>
+
+        <div class="quick-replies">
+          <button type="button" class="reply-pill" data-quick-reply="D’accord">D’accord</button>
+          <button type="button" class="reply-pill" data-quick-reply="J’envoie le brief">J’envoie le brief</button>
+          <button type="button" class="reply-pill" data-quick-reply="C’est validé">C’est validé</button>
+        </div>
+
+        <form class="chat-composer" id="messageForm">
+          <button type="button" class="secondary" data-attach="file">Pièce jointe</button>
+          <input id="messageText" placeholder="Écrire un message..." maxlength="400" />
+          <button class="primary" type="submit">Envoyer</button>
+        </form>
+      </section>
     </section>`;
 }
 
@@ -387,6 +466,12 @@ function bindActions() {
   document.querySelectorAll("[data-dispute]").forEach((button) => button.addEventListener("click", () => openDispute(button.dataset.dispute)));
   document.querySelectorAll("[data-select-order]").forEach((button) => button.addEventListener("click", () => { state.selectedOrderId = button.dataset.selectOrder; save(); location.hash = "messages"; }));
   document.querySelectorAll("[data-profile]").forEach((button) => button.addEventListener("click", () => { state.services.unshift(...state.services.splice(state.services.findIndex((item) => item.id === button.dataset.profile), 1)); save(); location.hash = "portfolio"; }));
+  document.querySelectorAll("[data-quick-reply]").forEach((button) => button.addEventListener("click", () => {
+    const input = document.querySelector("#messageText");
+    if (input) input.value = button.dataset.quickReply;
+    input?.focus();
+  }));
+  document.querySelectorAll("[data-attach]").forEach((button) => button.addEventListener("click", () => alert("Pièce jointe : vous pouvez ajouter un fichier ou une preuve de livraison en toute sécurité.")));
   const q = document.querySelector("#q");
   if (q) ["input", "change"].forEach((eventName) => document.querySelectorAll("#q,#cat,#city,#budget").forEach((field) => field.addEventListener(eventName, filterDiscover)));
   const form = document.querySelector("#messageForm");
@@ -500,8 +585,18 @@ function openDispute(id) {
 function sendMessage(event) {
   event.preventDefault();
   const input = document.querySelector("#messageText");
-  if (!input.value.trim()) return;
-  state.messages.push({ orderId: state.selectedOrderId, me: true, text: input.value.trim() });
+  const value = input?.value.trim();
+  if (!value) return;
+  const thread = (state.messages || []).find((item) => item.orderId === state.selectedOrderId) || {
+    orderId: state.selectedOrderId,
+    peer: "Prestataire",
+    role: "Partenaire",
+    online: true,
+    items: []
+  };
+  if (!thread.items) thread.items = [];
+  thread.items.push({ id: `m-${Date.now()}`, me: true, text: value, time: new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) });
+  if (!state.messages.some((item) => item.orderId === state.selectedOrderId)) state.messages.push(thread);
   input.value = "";
   save();
   render();
