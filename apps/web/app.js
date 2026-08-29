@@ -47,7 +47,7 @@ async function apiFetch(path, options = {}) {
   try {
     const response = await fetch(`${apiBase}${path}`, { ...options, headers, signal: controller.signal });
     const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(body.error || "API indisponible");
+    if (!response.ok) throw new Error(readApiError(body));
     return body.data;
   } catch (error) {
     if (error?.name === "AbortError") throw new Error("API trop lente, réessaie dans un instant.");
@@ -55,6 +55,13 @@ async function apiFetch(path, options = {}) {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function readApiError(body) {
+  const error = body?.error || body?.message;
+  if (!error) return "API indisponible";
+  if (typeof error === "string") return error;
+  return error.message || JSON.stringify(error);
 }
 
 function isEmailLike(value) {
