@@ -2,6 +2,14 @@ const storageKey = "kayjob.webapp.state";
 const apiBase = String(window.KAYJOB_API_URL || "").replace(/\/$/, "");
 const categories = ["Informatique", "Design", "Média", "Éducation", "Digital", "Créatif", "Services physiques"];
 const cities = ["Dakar", "Thiès", "Saint-Louis", "Ziguinchor", "Kaolack", "Touba", "Mbour", "Diourbel"];
+const authOverlay = document.querySelector("#authOverlay");
+const landingPage = document.querySelector("#landingPage");
+const appShell = document.querySelector("#appShell");
+const authForm = document.querySelector("#authForm");
+const authStatus = document.querySelector("#authStatus");
+const fullNameGroup = document.querySelector("#fullNameGroup");
+const authTabs = document.querySelectorAll(".auth-tab");
+let currentAuthMode = "login";
 
 const demoProfiles = [
   { id: "srv-1", name: "Awa Diop", pseudo: "awadesign", city: "Kaolack", category: "Design", title: "Logo et identité visuelle", price: 5000, mode: "remote", score: 92, image: "././assets/portfolio-logo.svg" },
@@ -65,6 +73,87 @@ async function apiFetch(path, options = {}) {
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || "API indisponible");
   return body.data;
+}
+
+function isEmailLike(value) {
+  return /@/.test(value);
+}
+
+function demoPasswordHash(password) {
+  return `demo:${btoa(String.fromCharCode(...[...password].map((char) => char.charCodeAt(0))))}`;
+}
+
+function localAuthKey(contact) {
+  return `kayjob.local.users.${String(contact || "").trim().toLowerCase()}`;
+}
+
+function localAuthEnabled() {
+  return !apiBase || !location.hostname.includes("render") || !location.hostname.includes("vercel");
+}
+
+function setAuthMode(mode) {
+  currentAuthMode = mode;
+  authTabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.authMode === mode));
+  const isSignup = mode === "signup";
+  fullNameGroup.classList.toggle("hidden", !isSignup);
+  authForm.dataset.mode = mode;
+  const submitLabel = isSignup ? "Créer mon compte" : "Se connecter";
+  const submit = authForm.querySelector(".auth-submit");
+  if (submit) submit.textContent = submitLabel;
+}
+
+function openAuth(mode = "login") {
+  setAuthMode(mode);
+  authStatus.textContent = "";
+  authOverlay.classList.remove("hidden");
+}
+
+function closeAuth() {
+  authOverlay.classList.add("hidden");
+  authStatus.textContent = "";
+}
+
+async function loginWithPassword(contact, password, mode, fullName) {
+  const payload = isEmailLike(contact)
+    ? { email: contact.trim().toLowerCase(), password }
+    : { phone: contact.trim(), password };
+  if (mode === "signup") payload.fullName = fullName || "Nouveau membre";
+
+  if (apiBase && !localAuthEnabled()) {
+    const endpoint = mode === "signup" ? "/api/auth/signup" : "/api/auth/login";
+    const result = await apiFetch(endpoint, { method: "POST", body: JSON.stringify(payload) });
+    if (result?.token) {
+      sessionStorage.setItem("kayjob.session", result.token);
+      if (result.user) sessionStorage.setItem("kayjob.user", JSON.stringify(result.user));
+      return true;
+    }
+  }
+
+  const key = localAuthKey(contact);
+  const store = JSON.parse(localStorage.getItem("kayjob.local.users") || "{}") || {};
+  if (mode === "signup") {
+    if (store[contact.trim().toLowerCase()]) throw new Error("Ce compte existe déjà. Connectez-vous avec votre mot de passe.");
+    store[contact.trim().toLowerCase()] = { fullName: payload.fullName, password: demoPasswordHash(password), createdAt: Date.now() };
+    localStorage.setItem("kayjob.local.users", JSON.stringify(store));
+  } else {
+    const account = store[contact.trim().toLowerCase()];
+    if (!account || account.password !== demoPasswordHash(password)) throw new Error("Identifiants invalides.");
+  }
+  const user = {
+    id: `demo-${Date.now()}`,
+    full_name: mode === "signup" ? payload.fullName : (store[contact.trim().toLowerCase()]?.fullName || "Membre KayJob"),
+    email: isEmailLike(contact) ? contact.trim().toLowerCase() : null,
+    phone: isEmailLike(contact) ? null : contact.trim(),
+    role: "both"
+  };
+  sessionStorage.setItem("kayjob.session", `demo-${Date.now()}`);
+  sessionStorage.setItem("kayjob.user", JSON.stringify(user));
+  return true;
+}
+
+function toggleAppVisibility(visible) {
+  landingPage.classList.toggle("hidden", visible);
+  appShell.classList.toggle("hidden", !visible);
 }
 
 async function syncRemote() {
@@ -191,7 +280,7 @@ function metric(value, label, detail) {
 }
 
 function login() {
-  return `<section class="split"><div class="panel"><p class="eyebrow">Espace sécurisé</p><h2>Connecte-toi à KayJob</h2><p class="meta">Un code OTP sera envoyé par téléphone ou email.</p><form id="loginForm" class="modal-card" style="width:auto;padding:0;box-shadow:none"><label>Téléphone ou email<input name="destination" required placeholder="+221 77 000 00 00" /></label><label>Code OTP<input name="code" inputmode="numeric" placeholder="Après l’envoi du code" /></label><div class="actions"><button class="secondary" value="request">Recevoir le code</button><button class="primary" value="verify">Se connecter</button></div><p id="loginStatus" class="meta" aria-live="polite"></p></form></div><aside class="panel"><h2>Une seule identité</h2><p class="meta">Commande comme client, propose tes compétences et retrouve ton portfolio avec le même compte.</p><span class="badge">Paiement protégé</span></aside></section>`;
+  return `<section class="split"><div class="panel"><p class="eyebrow">Espace sécurisé</p><h2>Connecte-toi à KayJob</h2><p class="meta">Utilise ton email ou ton téléphone avec un mot de passe.</p><form id="loginForm" class="modal-card" style="width:auto;padding:0;box-shadow:none"><label>Email ou téléphone<input name="accountEmail" required placeholder="vous@exemple.com ou +221 77 000 00 00" /></label><label>Mot de passe<input name="accountPassword" type="password" required placeholder="••••••••" /></label><div class="actions"><button class="primary" value="login">Se connecter</button></div><p id="loginStatus" class="meta" aria-live="polite"></p></form></div><aside class="panel"><h2>Une seule identité</h2><p class="meta">Commande comme client, propose tes compétences et retrouve ton portfolio avec le même compte.</p><span class="badge">Paiement protégé</span></aside></section>`;
 }
 
 function discover() {
@@ -279,7 +368,7 @@ function option(item) {
 
 function openModal(type) {
   const forms = {
-    auth: `<h2>Connexion KayJob</h2><p class="meta">Reçois un code OTP par téléphone ou email.</p><label>Téléphone ou email<input name="destination" required placeholder="+221 77 000 00 00" /></label><label>Code OTP<input name="code" inputmode="numeric" placeholder="À remplir après l'envoi" /></label><div class="actions"><button class="secondary" value="cancel">Annuler</button><button class="secondary" value="auth-request">Recevoir le code</button><button class="primary" value="auth-verify">Se connecter</button></div>`,
+    auth: `<h2>Connexion KayJob</h2><p class="meta">Utilise ton email ou ton téléphone avec un mot de passe.</p><label>Email ou téléphone<input name="accountEmail" required placeholder="vous@exemple.com ou +221 77 000 00 00" /></label><label>Mot de passe<input name="accountPassword" type="password" required placeholder="••••••••" /></label><div class="actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="auth-login">Se connecter</button></div>`,
     service: `<h2>Nouveau service</h2><label>Titre<input name="title" required /></label><label>Catégorie<select name="category">${categories.map(option).join("")}</select></label><label>Prix<input name="price" type="number" required /></label><div class="actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="service">Publier</button></div>`,
     mission: `<h2>Nouvelle mission</h2><label>Titre<input name="title" required /></label><label>Ville<select name="city">${cities.map(option).join("")}</select></label><label>Budget<input name="budget" type="number" required /></label><div class="actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="mission">Publier</button></div>`,
     work: `<h2>Nouvelle réalisation</h2><label>Titre<input name="title" required /></label><label>Lien<input name="url" placeholder="https://..." /></label><label>Description<textarea name="description" required></textarea></label><div class="actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="work">Ajouter</button></div>`
@@ -310,21 +399,47 @@ async function handleLogin(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const data = new FormData(form);
-  const destination = String(data.get("destination") || "").trim();
+  const destination = String(data.get("accountEmail") || data.get("destination") || "").trim();
+  const password = String(data.get("accountPassword") || data.get("password") || "").trim();
   const status = document.querySelector("#loginStatus");
   try {
-    if (event.submitter?.value === "request") {
-      const result = await apiFetch("/api/auth/request-otp", { method: "POST", body: JSON.stringify(destination.includes("@") ? { email: destination } : { phone: destination }) });
-      if (result.devCode) form.querySelector('[name="code"]').value = result.devCode;
-      status.textContent = result.devCode ? `Code de test : ${result.devCode}` : "Code envoyé. Vérifie ton téléphone ou ton email.";
-      return;
-    }
-    const result = await apiFetch("/api/auth/verify-otp", { method: "POST", body: JSON.stringify(destination.includes("@") ? { email: destination, code: String(data.get("code") || "") } : { phone: destination, code: String(data.get("code") || "") }) });
+    if (!destination || !password) throw new Error("Email/phone et mot de passe requis.");
+    const result = await apiFetch("/api/auth/login", { method: "POST", body: JSON.stringify(isEmailLike(destination) ? { email: destination.toLowerCase(), password } : { phone: destination, password }) });
     sessionStorage.setItem("kayjob.session", result.token);
+    if (result.user) sessionStorage.setItem("kayjob.user", JSON.stringify(result.user));
     status.textContent = "Connexion réussie.";
     await syncRemote();
+    toggleAppVisibility(true);
     location.hash = "dashboard";
-  } catch (error) { status.textContent = error instanceof Error ? error.message : "Connexion impossible"; }
+  } catch (error) {
+    const fallback = await tryLocalAuthLogin(destination, password);
+    if (fallback) {
+      status.textContent = "Connexion réussie en mode démo.";
+      await syncRemote();
+      toggleAppVisibility(true);
+      location.hash = "dashboard";
+      return;
+    }
+    status.textContent = error instanceof Error ? error.message : "Connexion impossible";
+  }
+}
+
+async function tryLocalAuthLogin(contact, password) {
+  const normalized = String(contact || "").trim();
+  if (!normalized || !password) return false;
+  const store = JSON.parse(localStorage.getItem("kayjob.local.users") || "{}") || {};
+  const entry = store[normalized.toLowerCase()];
+  if (!entry || entry.password !== demoPasswordHash(password)) return false;
+  const user = {
+    id: `demo-${Date.now()}`,
+    full_name: entry.fullName || "Membre KayJob",
+    email: isEmailLike(normalized) ? normalized.toLowerCase() : null,
+    phone: isEmailLike(normalized) ? null : normalized,
+    role: "both"
+  };
+  sessionStorage.setItem("kayjob.session", `demo-${Date.now()}`);
+  sessionStorage.setItem("kayjob.user", JSON.stringify(user));
+  return true;
 }
 
 function filterDiscover() {
@@ -394,13 +509,21 @@ function sendMessage(event) {
 
 modalForm.addEventListener("submit", (event) => {
   const action = event.submitter?.value;
-  if (action === "auth-request" || action === "auth-verify") {
+  if (action === "auth-login" || action === "auth-signup") {
     event.preventDefault();
     const data = new FormData(modalForm);
-    const destination = String(data.get("destination") || "").trim();
-    const code = String(data.get("code") || "").trim();
-    const request = action === "auth-request" ? apiFetch("/api/auth/request-otp", { method: "POST", body: JSON.stringify(destination.includes("@") ? { email: destination } : { phone: destination }) }).then((result) => { if (result.devCode) modalForm.querySelector('[name="code"]').value = result.devCode; alert(result.devCode ? `Code de test : ${result.devCode}` : "Code envoyé."); }) : apiFetch("/api/auth/verify-otp", { method: "POST", body: JSON.stringify(destination.includes("@") ? { email: destination, code } : { phone: destination, code }) }).then((result) => { sessionStorage.setItem("kayjob.session", result.token); modal.close(); return syncRemote(); });
-    request.catch((error) => alert(error.message));
+    const accountEmail = String(data.get("accountEmail") || "").trim();
+    const password = String(data.get("accountPassword") || "").trim();
+    const mode = action === "auth-signup" ? "signup" : "login";
+    const payload = { accountEmail, password };
+    if (!payload.accountEmail || !payload.password) return alert("Email/phone et mot de passe requis.");
+    loginWithPassword(payload.accountEmail, payload.password, mode, String(data.get("fullName") || "")).then((success) => {
+      if (!success) return;
+      modal.close();
+      syncRemote();
+      toggleAppVisibility(true);
+      location.hash = "dashboard";
+    }).catch((error) => alert(error.message));
     return;
   }
   if (!["service", "mission", "work"].includes(action)) return;
@@ -425,6 +548,48 @@ document.querySelector("#resetDemo").addEventListener("click", () => {
   state = structuredClone(seed);
   render();
 });
-window.addEventListener("hashchange", render);
+
+document.querySelector("#showLogin")?.addEventListener("click", () => openAuth("login"));
+document.querySelector("#showSignup")?.addEventListener("click", () => openAuth("signup"));
+document.querySelector("#ctaCreateAccount")?.addEventListener("click", () => openAuth("signup"));
+document.querySelector("#ctaBrowse")?.addEventListener("click", () => { toggleAppVisibility(true); location.hash = "discover"; });
+document.querySelector("#footerSignUp")?.addEventListener("click", () => openAuth("signup"));
+document.querySelector("#closeAuth")?.addEventListener("click", closeAuth);
+authTabs.forEach((tab) => tab.addEventListener("click", () => setAuthMode(tab.dataset.authMode)));
+authForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const formData = new FormData(authForm);
+  const contact = String(formData.get("accountEmail") || "").trim();
+  const password = String(formData.get("accountPassword") || "").trim();
+  const fullName = String(formData.get("fullName") || "").trim();
+  if (!contact || !password) {
+    authStatus.textContent = "Email/phone et mot de passe requis.";
+    return;
+  }
+  try {
+    const mode = authForm.dataset.mode || "login";
+    const success = await loginWithPassword(contact, password, mode, fullName);
+    if (!success) throw new Error("Impossible de créer ou d’authentifier le compte.");
+    closeAuth();
+    toggleAppVisibility(true);
+    location.hash = "dashboard";
+    authStatus.textContent = "";
+    await syncRemote();
+  } catch (error) {
+    authStatus.textContent = error instanceof Error ? error.message : "Authentication impossible";
+  }
+});
+
+window.addEventListener("hashchange", () => {
+  const hasSession = Boolean(sessionStorage.getItem("kayjob.session"));
+  if (hasSession && landingPage && !landingPage.classList.contains("hidden")) toggleAppVisibility(true);
+  render();
+});
+
+if (sessionStorage.getItem("kayjob.session")) {
+  toggleAppVisibility(true);
+} else {
+  toggleAppVisibility(false);
+}
 render();
 syncRemote();

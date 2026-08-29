@@ -8,3 +8,5 @@ npm-debug.log*
 .expo/
 .local-logs/
 apps/mobile/.env.local
+render.env
+render.env.*

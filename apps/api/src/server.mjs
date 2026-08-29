@@ -1,4 +1,4 @@
-import { createHash, randomInt, randomUUID } from "node:crypto";
+import { createHash, pbkdf2Sync, randomBytes, randomInt, randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import { pool } from "./db.mjs";
 import { assertTransition, canDeliverFinal } from "./order-state.mjs";
@@ -25,6 +25,72 @@ const readBody = (req) => new Promise((resolve, reject) => {
 });
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const safeFileName = (value) => String(value || "file").replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 100);
+
+function passwordHash(value) {
+  const salt = randomBytes(16).toString("hex");
+  const iterations = 120000;
+  const derived = pbkdf2Sync(value, salt, iterations, 64, "sha256").toString("hex");
+  return `pbkdf2_sha256$${iterations}$${salt}$${derived}`;
+}
+
+function verifyPassword(password, storedHash) {
+  if (!storedHash) return false;
+  const match = /^pbkdf2_sha256\$(\d+)\$([a-f0-9]+)\$([a-f0-9]+)$/.exec(storedHash);
+  if (!match) return false;
+  const [, iterations, salt, expectedHash] = match;
+  const derived = pbkdf2Sync(password, salt, Number(iterations), 64, "sha256").toString("hex");
+  return derived === expectedHash;
+}
+
+async function createAuthToken(user) {
+  const token = randomUUID() + randomUUID();
+  await pool.query("INSERT INTO auth_sessions (user_id, token_hash, device_name, expires_at) VALUES ($1, $2, $3, CURRENT_TIMESTAMP + INTERVAL '30 days')", [user.id, hash(token), "KayJob web"]);
+  return token;
+}
+
+async function findUserByContact(contact) {
+  const normalized = String(contact || "").trim();
+  if (!normalized) return null;
+  const isEmail = normalized.includes("@");
+  const value = isEmail ? normalized.toLowerCase() : normalized;
+  const column = isEmail ? "email" : "phone";
+  const result = await pool.query(`SELECT id, full_name, email, phone, password_hash, role FROM users WHERE ${column} = $1 LIMIT 1`, [value]);
+  return result.rowCount ? result.rows[0] : null;
+}
+
+async function signUp(body) {
+  const contact = String(body.email || body.phone || "").trim();
+  const password = String(body.password || "").trim();
+  const fullName = String(body.fullName || "Nouveau membre").trim();
+  const isEmail = Boolean(body.email);
+  const key = isEmail ? String(body.email || "").trim().toLowerCase() : String(body.phone || "").trim();
+  if (!contact || !password || password.length < 6) throw Object.assign(new Error("email or phone and password are required"), { statusCode: 422 });
+  const existing = await findUserByContact(key);
+  if (existing) {
+    if (!existing.password_hash) {
+      await pool.query(`UPDATE users SET full_name = $1, password_hash = $2 WHERE id = $3`, [fullName || "Nouveau membre", passwordHash(password), existing.id]);
+      const refreshed = await findUserByContact(key);
+      const token = await createAuthToken(refreshed);
+      return { token, user: { id: refreshed.id, full_name: refreshed.full_name, email: refreshed.email, phone: refreshed.phone, role: refreshed.role || "both" } };
+    }
+    throw Object.assign(new Error("Account already exists. Please log in."), { statusCode: 409 });
+  }
+  const created = await pool.query(`INSERT INTO users (full_name, ${isEmail ? "email" : "phone"}, password_hash, role) VALUES ($1, $2, $3, 'both') RETURNING id, full_name, email, phone, role`, [fullName || "Nouveau membre", key, passwordHash(password)]);
+  await pool.query("INSERT INTO wallets (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING", [created.rows[0].id]);
+  const token = await createAuthToken(created.rows[0]);
+  return { token, user: { id: created.rows[0].id, full_name: created.rows[0].full_name, email: created.rows[0].email, phone: created.rows[0].phone, role: created.rows[0].role || "both" } };
+}
+
+async function login(body) {
+  const contact = String(body.email || body.phone || "").trim();
+  const password = String(body.password || "").trim();
+  if (!contact || !password || password.length < 6) throw Object.assign(new Error("email or phone and password are required"), { statusCode: 422 });
+  const user = await findUserByContact(contact);
+  if (!user) throw Object.assign(new Error("Account not found. Please sign up first."), { statusCode: 404 });
+  if (!user.password_hash || !verifyPassword(password, user.password_hash)) throw Object.assign(new Error("Invalid credentials"), { statusCode: 401 });
+  const token = await createAuthToken(user);
+  return { token, user: { id: user.id, full_name: user.full_name, email: user.email, phone: user.phone, role: user.role || "both" } };
+}
 
 function senePayConfig() {
   const publicKey = process.env.SENE_PAY_PUBLIC_KEY;
@@ -133,10 +199,9 @@ async function createOrder(req, body) {
 }
 
 async function paymentWebhook(req, provider, body) {
+  if (provider !== "senepay") throw Object.assign(new Error("Unsupported payment provider"), { statusCode: 400 });
   const signature = req.headers["x-provider-signature"];
-  const envSecret = provider === "senepay"
-    ? process.env.SENE_PAY_WEBHOOK_SECRET || process.env.SENE_PAY_SECRET_KEY
-    : process.env[`${provider.toUpperCase()}_WEBHOOK_SECRET`];
+  const envSecret = process.env.SENE_PAY_WEBHOOK_SECRET || process.env.SENE_PAY_SECRET_KEY;
   if (!signature || process.env.NODE_ENV === "production" && signature !== envSecret) {
     throw Object.assign(new Error("Invalid webhook signature"), { statusCode: 401 });
   }
@@ -172,6 +237,8 @@ async function route(req, res) {
   if (req.method === "OPTIONS") return json(res, 204, {});
   if (req.method === "GET" && path === "/health") return json(res, 200, { ok: true, service: "kayjob-api" });
   if (req.method === "GET" && path === "/api/storage/status") { await authenticatedUserId(req); return json(res, 200, { data: { provider: "cloudflare-r2", configured: storageConfigured(), bucketPrivate: true, signedUploads: true, signedDownloads: true } }); }
+  if (req.method === "POST" && path === "/api/auth/signup") return json(res, 201, { data: await signUp(await readBody(req)) });
+  if (req.method === "POST" && path === "/api/auth/login") return json(res, 200, { data: await login(await readBody(req)) });
   if (req.method === "POST" && path === "/api/auth/request-otp") return json(res, 200, { data: await requestOtp(await readBody(req)) });
   if (req.method === "POST" && path === "/api/auth/verify-otp") return json(res, 200, { data: await verifyOtp(await readBody(req)) });
   if (req.method === "GET" && path === "/api/services") {
@@ -252,7 +319,7 @@ async function route(req, res) {
     return json(res, 200, { data: result.rows[0] });
   }
   if (req.method === "POST" && path === "/api/orders") return json(res, 201, { data: await createOrder(req, await readBody(req)) });
-  const webhook = path.match(/^\/api\/webhooks\/payments\/(wave|orange_money|yas|senepay)$/);
+  const webhook = path.match(/^\/api\/webhooks\/payments\/(senepay)$/);
   if (req.method === "POST" && webhook) return json(res, 200, { data: await paymentWebhook(req, webhook[1], await readBody(req)) });
   const payment = path.match(/^\/api\/orders\/(\d+)\/pay$/);
   if (req.method === "POST" && payment) {
