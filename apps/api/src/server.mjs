@@ -1,5 +1,6 @@
 import { createHash, pbkdf2Sync, randomBytes, randomInt, randomUUID } from "node:crypto";
 import { createServer } from "node:http";
+import { pathToFileURL } from "node:url";
 import { pool } from "./db.mjs";
 import { assertTransition, canDeliverFinal } from "./order-state.mjs";
 import { redactContactContent } from "./message-safety.mjs";
@@ -353,7 +354,7 @@ async function paymentWebhook(req, provider, body) {
   } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
 }
 
-async function route(req, res) {
+export async function route(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
   const path = url.pathname;
   if (req.method === "OPTIONS") return json(res, 204, {});
@@ -744,7 +745,18 @@ async function route(req, res) {
   return json(res, 404, { error: "Route not found" });
 }
 
-createServer((req, res) => {
+function serve() {
+  return createServer((req, res) => {
+    res.req = req;
+    return route(req, res).catch((error) => json(res, error.statusCode || 500, { error: error.message }));
+  }).listen(port, () => console.log(`KayJob API listening on http://localhost:${port}`));
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  serve();
+}
+
+export default function handler(req, res) {
   res.req = req;
   return route(req, res).catch((error) => json(res, error.statusCode || 500, { error: error.message }));
-}).listen(port, () => console.log(`KayJob API listening on http://localhost:${port}`));
+}

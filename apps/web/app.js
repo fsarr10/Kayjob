@@ -3,6 +3,7 @@ const stateVersion = 2;
 const defaultApiBase = "";
 const configuredApiBase = String(globalThis.KAYJOB_API_URL || "").includes("__KAYJOB_API_URL__") ? "" : globalThis.KAYJOB_API_URL;
 const apiBase = String(configuredApiBase || localStorage.getItem("kayjob.api.url") || defaultApiBase).replace(/\/$/, "");
+const apiAvailable = Boolean(apiBase || location.protocol === "https:" || location.protocol === "http:");
 const categories = ["Informatique", "Design", "Média", "Éducation", "Digital", "Créatif", "Services physiques"];
 const cities = ["Dakar", "Thiès", "Saint-Louis", "Ziguinchor", "Kaolack", "Touba", "Mbour", "Diourbel"];
 const authOverlay = document.querySelector("#authOverlay");
@@ -36,7 +37,7 @@ function safeSeed() {
 }
 
 async function apiFetch(path, options = {}) {
-  if (!apiBase) throw new Error("API non configurée");
+  if (!apiAvailable) throw new Error("API non configurée");
   const headers = { accept: "application/json", ...(options.headers || {}) };
   if (options.body) headers["content-type"] = "application/json";
   const token = sessionStorage.getItem("kayjob.session");
@@ -102,7 +103,7 @@ function toggleAppVisibility(visible) {
 }
 
 async function syncRemote() {
-  if (!apiBase) return;
+  if (!apiAvailable) return;
   try {
     const services = await apiFetch("/api/services");
     state.services = Array.isArray(services) ? services.map((row) => ({ ...talent(`api-srv-${row.id}`, row.full_name, row.pseudo || "talent", row.city || "Sénégal", row.category || "Compétence", row.title, Number(row.starting_price), row.delivery_mode || "remote", Number(row.sama_score || 0), mapPortfolio(row.portfolio)), apiId: Number(row.id), userId: Number(row.user_id), avatar: row.avatar_url, verificationStatus: row.verification_status })) : [];
@@ -342,7 +343,7 @@ function render() {
   if (quickMission) quickMission.style.display = hasActiveSession() ? "" : "none";
   const apiStatus = document.querySelector("#apiStatus");
   if (apiStatus) {
-    apiStatus.textContent = state.remote ? "API connectée" : apiBase ? "API à vérifier" : "API absente";
+    apiStatus.textContent = state.remote ? "API connectée" : apiAvailable ? "API à vérifier" : "API absente";
     apiStatus.classList.toggle("online", Boolean(state.remote));
     apiStatus.classList.toggle("offline", !state.remote);
   }
