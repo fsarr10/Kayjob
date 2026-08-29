@@ -271,7 +271,8 @@ function orders() {
 
 function orderRow(order) {
   const item = state.services.find((service) => service.id === order.serviceId);
-  return `<article class="list-item"><div><h3>${order.id} · ${item?.title || order.title || "Commande KayJob"}</h3><p class="meta">${money(order.gross ?? order.amount_total ?? 0)} · ${orderStatus(order.status)}</p></div><div class="actions"><button class="secondary" data-select-order="${order.id}">Messages</button><button class="primary" data-paid="${order.id}">Valider</button><button class="danger" data-dispute="${order.id}">Litige</button></div></article>`;
+  const adminButtons = isUserAdmin() ? `<button class="primary" data-paid="${order.id}">Valider</button><button class="danger" data-dispute="${order.id}">Litige</button>` : "";
+  return `<article class="list-item"><div><h3>${order.id} · ${item?.title || order.title || "Commande KayJob"}</h3><p class="meta">${money(order.gross ?? order.amount_total ?? 0)} · ${orderStatus(order.status)}</p></div><div class="actions"><button class="secondary" data-select-order="${order.id}">Messages</button>${adminButtons}</div></article>`;
 }
 
 function messages() {
