@@ -468,14 +468,47 @@ async function route(req, res) {
     return json(res, 200, { data: { downloadUrl: await signedDownload(file.rows[0].original_storage_key, 300), expiresIn: 300 } });
   }
   const messages = path.match(/^\/api\/orders\/(\d+)\/messages$/);
+  if (req.method === "GET" && messages) {
+    const viewerId = await authenticatedUserId(req);
+    const orderId = Number(messages[1]);
+    const order = await pool.query("SELECT id FROM orders WHERE id = $1 AND (client_id = $2 OR profile_id IN (SELECT id FROM student_profiles WHERE user_id = $2))", [orderId, viewerId]);
+    if (!order.rowCount) throw Object.assign(new Error("Order not found or access denied"), { statusCode: 404 });
+    let conversation = await pool.query("SELECT id FROM conversations WHERE order_id = $1 LIMIT 1", [orderId]);
+    if (!conversation.rowCount) {
+      conversation = await pool.query("INSERT INTO conversations (order_id) VALUES ($1) RETURNING id", [orderId]);
+    }
+    const rows = await pool.query(`SELECT m.id, m.sender_id, u.full_name AS sender_name, m.body, m.attachment_url, m.created_at
+      FROM messages m JOIN users u ON u.id = m.sender_id
+      WHERE m.conversation_id = $1 ORDER BY m.created_at ASC`, [conversation.rows[0].id]);
+    return json(res, 200, { data: rows.rows.map((row) => ({
+      id: row.id,
+      senderId: row.sender_id,
+      senderName: row.sender_name,
+      body: row.body,
+      attachmentUrl: row.attachment_url,
+      createdAt: row.created_at,
+      me: Number(row.sender_id) === Number(viewerId)
+    })) });
+  }
   if (req.method === "POST" && messages) {
     const senderId = await authenticatedUserId(req); const body = await readBody(req); const safe = redactContactContent(String(body.body || "").trim());
-    if (!safe.body) throw Object.assign(new Error("Message body is required"), { statusCode: 422 });
-    const conversation = await pool.query("SELECT id FROM conversations WHERE order_id = $1 LIMIT 1", [Number(messages[1])]);
-    if (!conversation.rowCount) throw Object.assign(new Error("Conversation not found"), { statusCode: 404 });
-    const saved = await pool.query("INSERT INTO messages (conversation_id, sender_id, body) VALUES ($1, $2, $3) RETURNING id, body, created_at", [conversation.rows[0].id, senderId, safe.body]);
+    const attachmentUrl = String(body.attachmentUrl || body.attachment_url || "").trim();
+    if (!safe.body && !attachmentUrl) throw Object.assign(new Error("Message body or attachment is required"), { statusCode: 422 });
+    let conversation = await pool.query("SELECT id FROM conversations WHERE order_id = $1 LIMIT 1", [Number(messages[1])]);
+    if (!conversation.rowCount) {
+      conversation = await pool.query("INSERT INTO conversations (order_id) VALUES ($1) RETURNING id", [Number(messages[1])]);
+    }
+    const saved = await pool.query("INSERT INTO messages (conversation_id, sender_id, body, attachment_url) VALUES ($1, $2, $3, $4) RETURNING id, body, attachment_url, created_at", [conversation.rows[0].id, senderId, safe.body || "Pièce jointe", attachmentUrl || null]);
     if (safe.flagged) await pool.query("INSERT INTO risk_events (user_id, order_id, event_type, severity, redacted_value) VALUES ($1, $2, 'contact_attempt', 'medium', $3)", [senderId, Number(messages[1]), safe.reason]);
-    return json(res, 201, { data: saved.rows[0], warning: safe.flagged ? "Contact details were hidden to keep the transaction protected." : undefined });
+    return json(res, 201, { data: {
+      id: saved.rows[0].id,
+      senderId,
+      body: saved.rows[0].body,
+      attachmentUrl: saved.rows[0].attachment_url,
+      createdAt: saved.rows[0].created_at,
+      me: true,
+      warning: safe.flagged ? "Contact details were hidden to keep the transaction protected." : undefined
+    }, warning: safe.flagged ? "Contact details were hidden to keep the transaction protected." : undefined });
   }
   return json(res, 404, { error: "Route not found" });
 }

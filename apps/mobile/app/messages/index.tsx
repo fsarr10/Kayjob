@@ -12,12 +12,20 @@ export default function MessagesScreen() {
   const quickReplies = ["D’accord", "J’envoie le brief", "C’est validé", "Merci"];
   const order = orders[0];
 
-  const addMessage = (text: string) => {
+  const addMessage = (text: string, kind: "text" | "attachment" = "text") => {
     const value = text.trim();
     if (!value) return;
     setThread((current) => [
       ...current,
-      { id: `msg-${Date.now()}`, from: "Client", text: value, mine: true, time: "maintenant" }
+      {
+        id: `msg-${Date.now()}`,
+        from: "Client",
+        text: kind === "attachment" ? `Pièce jointe : ${value}` : value,
+        mine: true,
+        time: "maintenant",
+        status: "Vu",
+        attachment: kind === "attachment"
+      }
     ]);
     setDraft("");
   };
@@ -68,8 +76,12 @@ export default function MessagesScreen() {
               {thread.map((message) => (
                 <View key={message.id} style={[local.bubble, message.mine ? local.mine : local.theirs, shadow]}>
                   <Text style={[local.from, message.mine ? local.mineText : null]}>{message.from}</Text>
-                  <Text style={[local.text, message.mine ? local.mineText : null]}>{message.text}</Text>
-                  <Text style={[local.time, message.mine ? local.mineText : null]}>{message.time}</Text>
+                  {message.attachment ? <View style={local.attachmentPill}><Text style={local.attachmentText}>📎 {message.text.replace("Pièce jointe : ", "")}</Text></View> : null}
+                  {!message.attachment ? <Text style={[local.text, message.mine ? local.mineText : null]}>{message.text}</Text> : null}
+                  <View style={local.metaRow}>
+                    <Text style={[local.time, message.mine ? local.mineText : null]}>{message.time}</Text>
+                    {message.mine ? <Text style={[local.statusText, message.mine ? local.mineText : null]}>{message.status || "Vu"}</Text> : null}
+                  </View>
                 </View>
               ))}
             </View>
@@ -83,7 +95,10 @@ export default function MessagesScreen() {
             </View>
 
             <View style={[local.composer, shadow]}>
-              <TouchableOpacity style={local.iconButton} activeOpacity={0.8} onPress={() => Alert.alert("Pièce jointe", "Les fichiers seront envoyés dans l’espace de commande sécurisé.")}>
+              <TouchableOpacity style={local.iconButton} activeOpacity={0.8} onPress={() => {
+                const attachmentName = "preuve-livraison.pdf";
+                addMessage(attachmentName, "attachment");
+              }}>
                 <Paperclip color={colors.green} size={19} />
               </TouchableOpacity>
               <TextInput value={draft} onChangeText={setDraft} placeholder="Écrivez un message..." placeholderTextColor="#7b8984" style={local.input} multiline />
@@ -118,6 +133,10 @@ const local = StyleSheet.create({
   text: { color: colors.ink, lineHeight: 20 },
   time: { fontSize: 11, color: colors.muted },
   mineText: { color: "#fff" },
+  metaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  statusText: { fontSize: 11, color: colors.muted, fontWeight: "800" },
+  attachmentPill: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: radii.sm, backgroundColor: "rgba(255,255,255,0.15)", borderWidth: 1, borderColor: "rgba(255,255,255,0.28)" },
+  attachmentText: { color: colors.ink, fontWeight: "800" },
   repliesRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: space.md, paddingBottom: space.sm },
   replyChip: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.mint, borderWidth: 1, borderColor: "#bfe8d0" },
   replyText: { color: colors.greenDark, fontWeight: "800", fontSize: 12 },

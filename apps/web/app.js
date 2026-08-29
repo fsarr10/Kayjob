@@ -2,6 +2,7 @@ const storageKey = "kayjob.webapp.state";
 const apiBase = String(window.KAYJOB_API_URL || "").replace(/\/$/, "");
 const categories = ["Informatique", "Design", "Média", "Éducation", "Digital", "Créatif", "Services physiques"];
 const cities = ["Dakar", "Thiès", "Saint-Louis", "Ziguinchor", "Kaolack", "Touba", "Mbour", "Diourbel"];
+const demoAdminAccounts = ["admin@kayjob.sn", "admin", "+221770000000"];
 
 const demoProfiles = [
   { id: "srv-1", name: "Awa Diop", pseudo: "awadesign", city: "Kaolack", category: "Design", title: "Logo et identité visuelle", price: 5000, mode: "remote", score: 92, image: "././assets/portfolio-logo.svg" },
@@ -176,8 +177,21 @@ function setTitle(route) {
   document.querySelectorAll("[data-route]").forEach((link) => link.classList.toggle("active", link.dataset.route === route));
 }
 
+function isUserAdmin() {
+  const userJson = sessionStorage.getItem("kayjob.user");
+  if (!userJson) return false;
+  try {
+    const user = JSON.parse(userJson);
+    return user.role === "admin" || user.isAdmin === true || (user.email === "admin@kayjob.sn" || user.phone === "+221770000000");
+  } catch { return false; }
+}
+
 function render() {
   const route = currentRoute();
+  if (route === "admin" && !isUserAdmin()) {
+    location.hash = "dashboard";
+    return;
+  }
   setTitle(route);
   const pages = { dashboard, discover, missions, orders, messages, portfolio, admin, login };
   view.innerHTML = (pages[route] || dashboard)();
@@ -306,8 +320,8 @@ function messages() {
         <div class="chat-messages">
           ${rows.map((message) => `<div class="chat-message ${message.me ? "me" : "them"}">
             <div class="bubble-wrap">
-              <div class="bubble-text">${message.text}</div>
-              <div class="bubble-meta"><span>${message.time}</span>${message.me ? '<span>✓✓</span>' : ''}</div>
+              ${message.attachment ? `<div class="bubble-doc">📎 ${message.text.replace("Pièce jointe : ", "")}</div>` : `<div class="bubble-text">${message.text}</div>`}
+              <div class="bubble-meta"><span>${message.time}</span>${message.me ? `<span>${message.status || "Vu"}</span>` : ''}</div>
             </div>
           </div>`).join("")}
         </div>
@@ -338,18 +352,47 @@ function portfolio() {
 }
 
 function admin() {
+  const pendingVerifs = state.services.length > 3 ? state.services.slice(0, 3) : state.services;
+  const pendingLitiges = state.disputes || [];
+  const escrowedOrders = (state.orders || []).filter((o) => o.status === "escrowed");
   return `
     <section class="grid four">
-      ${metric(state.services.length, "Utilisateurs", "profils à suivre")}
-      ${metric("3", "Vérifications", "documents privés")}
-      ${metric(state.orders.length, "Escrow", "transactions")}
-      ${metric(state.disputes.length, "Litiges", "file admin")}
+      ${metric(state.services.length, "Utilisateurs", "profils actifs")}
+      ${metric(pendingVerifs.length, "Vérifications", "en attente")}
+      ${metric(escrowedOrders.length, "Escrow", "transactions bloquées")}
+      ${metric(pendingLitiges.length, "Litiges", "à arbitrer")}
     </section>
-    <section class="grid three" style="margin-top:16px">
-      <article class="panel"><h2>Vérifications</h2><p class="meta">Pièce d’identité, téléphone et email de contact.</p></article>
-      <article class="panel"><h2>Paiements</h2><p class="meta">SenePay, Wave, Orange Money, carte.</p></article>
-      <article class="panel"><h2>Régions</h2><p class="meta">Dakar, Thiès, Saint-Louis, Ziguinchor, Kaolack.</p></article>
-    </section>`;
+    
+    <section class="split" style="margin-top:16px">
+      <div class="panel">
+        <h2>Vérifications en attente</h2>
+        <div class="list">${pendingVerifs.map((service) => `
+          <article class="list-item">
+            <div><h3>${service.name}</h3><p class="meta">${service.pseudo} · ${service.city}</p></div>
+            <div class="actions"><button class="secondary" data-verify="${service.id}">Valider</button><button class="danger" data-reject="${service.id}">Rejeter</button></div>
+          </article>`).join("")}</div>
+      </div>
+      
+      <div class="panel">
+        <h2>Escrow en attente</h2>
+        <div class="list">${escrowedOrders.map((order) => {
+          const service = state.services.find((s) => s.id === order.serviceId);
+          return `<article class="list-item">
+            <div><h3>${order.id}</h3><p class="meta">${money(order.gross)} · ${service?.title || "Commande"}</p></div>
+            <div class="actions"><button class="primary" data-release="${order.id}">Libérer</button><button class="danger" data-hold="${order.id}">Bloquer</button></div>
+          </article>`;
+        }).join("")}</div>
+      </div>
+    </section>
+    
+    <div class="panel" style="margin-top:16px">
+      <h2>Litiges ouverts</h2>
+      <div class="list">${pendingLitiges.map((litige) => `
+        <article class="list-item">
+          <div><h3>Litige ${litige.id}</h3><p class="meta">Commande ${litige.orderId} · Statut : ${litige.status}</p></div>
+          <div class="actions"><button class="secondary" data-review="${litige.id}">Examiner</button><button class="primary" data-resolve="${litige.id}">Résoudre</button></div>
+        </article>`).join("")}</div>
+    </div>`;
 }
 
 function option(item) {
@@ -368,6 +411,8 @@ function openModal(type) {
 }
 
 function bindActions() {
+  const adminLink = document.querySelector("[data-route='admin']");
+  if (adminLink) adminLink.style.display = isUserAdmin() ? "" : "none";
   document.querySelector("#authButton")?.addEventListener("click", () => { location.hash = "login"; });
   document.querySelectorAll("[data-route-to]").forEach((button) => button.addEventListener("click", () => { location.hash = button.dataset.routeTo; }));
   document.querySelectorAll("[data-modal]").forEach((button) => button.addEventListener("click", () => openModal(button.dataset.modal)));
@@ -375,6 +420,12 @@ function bindActions() {
   document.querySelectorAll("[data-offer]").forEach((button) => button.addEventListener("click", () => addOffer(button.dataset.offer)));
   document.querySelectorAll("[data-paid]").forEach((button) => button.addEventListener("click", () => updateOrder(button.dataset.paid, "paid_out")));
   document.querySelectorAll("[data-dispute]").forEach((button) => button.addEventListener("click", () => openDispute(button.dataset.dispute)));
+  document.querySelectorAll("[data-verify]").forEach((button) => button.addEventListener("click", () => { alert(`Profil ${button.dataset.verify} vérifié et activé.`); state.notifications.unshift(`Vérification acceptée pour ${button.dataset.verify}`); save(); render(); }));
+  document.querySelectorAll("[data-reject]").forEach((button) => button.addEventListener("click", () => { alert(`Profil ${button.dataset.reject} rejeté. Notification envoyée.`); state.notifications.unshift(`Vérification rejetée pour ${button.dataset.reject}`); save(); render(); }));
+  document.querySelectorAll("[data-release]").forEach((button) => button.addEventListener("click", () => { const order = state.orders.find((o) => o.id === button.dataset.release); if (order) { order.status = "paid_out"; state.notifications.unshift(`Paiement libéré : ${button.dataset.release}`); save(); render(); } }));
+  document.querySelectorAll("[data-hold]").forEach((button) => button.addEventListener("click", () => { const order = state.orders.find((o) => o.id === button.dataset.hold); if (order) { order.status = "disputed"; state.notifications.unshift(`Escrow bloqué : ${button.dataset.hold}`); save(); render(); } }));
+  document.querySelectorAll("[data-review]").forEach((button) => button.addEventListener("click", () => alert(`Examen du litige ${button.dataset.review} - collecte des preuves en cours.`)));
+  document.querySelectorAll("[data-resolve]").forEach((button) => button.addEventListener("click", () => { const litige = state.disputes.find((l) => l.id === button.dataset.resolve); if (litige) { litige.status = "resolved"; state.notifications.unshift(`Litige ${button.dataset.resolve} résolu`); save(); render(); } }));
   document.querySelectorAll("[data-select-order]").forEach((button) => button.addEventListener("click", () => { state.selectedOrderId = button.dataset.selectOrder; save(); location.hash = "messages"; }));
   document.querySelectorAll("[data-profile]").forEach((button) => button.addEventListener("click", () => { state.services.unshift(...state.services.splice(state.services.findIndex((item) => item.id === button.dataset.profile), 1)); save(); location.hash = "portfolio"; }));
   document.querySelectorAll("[data-quick-reply]").forEach((button) => button.addEventListener("click", () => {
@@ -382,7 +433,13 @@ function bindActions() {
     if (input) input.value = button.dataset.quickReply;
     input?.focus();
   }));
-  document.querySelectorAll("[data-attach]").forEach((button) => button.addEventListener("click", () => alert("Pièce jointe : vous pouvez ajouter un fichier ou une preuve de livraison en toute sécurité.")));
+  document.querySelectorAll("[data-attach]").forEach((button) => button.addEventListener("click", () => {
+    const input = document.querySelector("#messageText");
+    if (input) {
+      input.value = "Pièce jointe : preuve-livraison.pdf";
+      input.focus();
+    }
+  }));
   const q = document.querySelector("#q");
   if (q) ["input", "change"].forEach((eventName) => document.querySelectorAll("#q,#cat,#city,#budget").forEach((field) => field.addEventListener(eventName, filterDiscover)));
   const form = document.querySelector("#messageForm");
@@ -467,11 +524,12 @@ function openDispute(id) {
   updateOrder(id, "disputed");
 }
 
-function sendMessage(event) {
+async function sendMessage(event) {
   event.preventDefault();
   const input = document.querySelector("#messageText");
   const value = input?.value.trim();
   if (!value) return;
+  const order = state.orders.find((item) => item.id === state.selectedOrderId) || state.orders[0];
   const thread = (state.messages || []).find((item) => item.orderId === state.selectedOrderId) || {
     orderId: state.selectedOrderId,
     peer: "Prestataire",
@@ -479,11 +537,28 @@ function sendMessage(event) {
     online: true,
     items: []
   };
+  const message = {
+    id: `m-${Date.now()}`,
+    me: true,
+    text: value,
+    time: new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+    status: "Vu",
+    attachment: value.startsWith("Pièce jointe :")
+  };
   if (!thread.items) thread.items = [];
-  thread.items.push({ id: `m-${Date.now()}`, me: true, text: value, time: new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) });
+  thread.items.push(message);
   if (!state.messages.some((item) => item.orderId === state.selectedOrderId)) state.messages.push(thread);
   input.value = "";
   save();
+  if (apiBase && sessionStorage.getItem("kayjob.session") && order) {
+    try {
+      const apiOrderId = Number(order.apiId || state.selectedOrderId.replace(/\D+/g, "") || 0);
+      const payload = { body: message.attachment ? value.replace("Pièce jointe : ", "") : value, attachmentUrl: message.attachment ? "https://storage.kayjob.sn/preuves/preuve-livraison.pdf" : null };
+      if (apiOrderId) await apiFetch(`/api/orders/${apiOrderId}/messages`, { method: "POST", body: JSON.stringify(payload) });
+    } catch (error) {
+      console.warn("Message API non synchronisé", error.message);
+    }
+  }
   render();
 }
 

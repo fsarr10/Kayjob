@@ -105,10 +105,18 @@ export const orders = [
   { id: "KJ-1025", title: "Logo restaurant", status: "Livré", amount: "5 000 FCFA", net: "4 500 FCFA" }
 ];
 
-export const messages = [
-  { id: "msg-1", from: "Mamadou", text: "Je peux livrer la première version demain soir.", mine: false, time: "09:12" },
-  { id: "msg-2", from: "Client", text: "Parfait, j'ajoute le brief et les images.", mine: true, time: "09:14" },
-  { id: "msg-3", from: "KayJob", text: "Paiement reçu et bloqué en séquestre.", mine: false, time: "09:16" }
+export const messages: Array<{
+  id: string;
+  from: string;
+  text: string;
+  mine: boolean;
+  time: string;
+  status: string;
+  attachment?: boolean;
+}> = [
+  { id: "msg-1", from: "Mamadou", text: "Je peux livrer la première version demain soir.", mine: false, time: "09:12", status: "Lu" },
+  { id: "msg-2", from: "Client", text: "Parfait, j'ajoute le brief et les images.", mine: true, time: "09:14", status: "Vu" },
+  { id: "msg-3", from: "KayJob", text: "Paiement reçu et bloqué en séquestre.", mine: false, time: "09:16", status: "Lu" }
 ];
 
 export const adminStats = [
