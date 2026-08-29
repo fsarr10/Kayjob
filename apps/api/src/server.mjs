@@ -447,7 +447,7 @@ export async function route(req, res) {
   }
   if (req.method === "GET" && path === "/api/me/orders") {
     const currentUser = await authenticatedUserId(req);
-    const result = await pool.query(`SELECT o.id, o.status, o.amount_total, o.commission_amount, o.amount_net_provider, o.created_at, s.title FROM orders o LEFT JOIN services s ON s.id = o.service_id WHERE o.client_id = $1 OR o.profile_id IN (SELECT id FROM student_profiles WHERE user_id = $1) ORDER BY o.id DESC`, [currentUser]);
+    const result = await pool.query(`SELECT o.id, o.status, o.amount_total, o.commission_amount, o.amount_net_provider, s.title FROM orders o LEFT JOIN services s ON s.id = o.service_id WHERE o.client_id = $1 OR o.profile_id IN (SELECT id FROM student_profiles WHERE user_id = $1) ORDER BY o.id DESC`, [currentUser]);
     return json(res, 200, { data: result.rows });
   }
   if (req.method === "GET" && path === "/api/me/notifications") {
