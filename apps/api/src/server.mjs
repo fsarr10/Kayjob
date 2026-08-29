@@ -26,6 +26,18 @@ const readBody = (req) => new Promise((resolve, reject) => {
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const safeFileName = (value) => String(value || "file").replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 100);
 
+function senePayConfig() {
+  const publicKey = process.env.SENE_PAY_PUBLIC_KEY;
+  const secretKey = process.env.SENE_PAY_SECRET_KEY;
+  if (!publicKey || !secretKey) return null;
+  return {
+    publicKey,
+    secretKey,
+    baseUrl: process.env.SENE_PAY_BASE_URL || "https://api.sene-pay.com",
+    webhookSecret: process.env.SENE_PAY_WEBHOOK_SECRET || secretKey
+  };
+}
+
 async function requestOtp(body) {
   const channel = body.phone ? "phone" : body.email ? "email" : null;
   const destination = String(body.phone || body.email || "").trim().toLowerCase();
@@ -122,7 +134,10 @@ async function createOrder(req, body) {
 
 async function paymentWebhook(req, provider, body) {
   const signature = req.headers["x-provider-signature"];
-  if (!signature || process.env.NODE_ENV === "production" && signature !== process.env[`${provider.toUpperCase()}_WEBHOOK_SECRET`]) {
+  const envSecret = provider === "senepay"
+    ? process.env.SENE_PAY_WEBHOOK_SECRET || process.env.SENE_PAY_SECRET_KEY
+    : process.env[`${provider.toUpperCase()}_WEBHOOK_SECRET`];
+  if (!signature || process.env.NODE_ENV === "production" && signature !== envSecret) {
     throw Object.assign(new Error("Invalid webhook signature"), { statusCode: 401 });
   }
   const eventId = body.eventId || body.id || body.reference;
@@ -237,12 +252,24 @@ async function route(req, res) {
     return json(res, 200, { data: result.rows[0] });
   }
   if (req.method === "POST" && path === "/api/orders") return json(res, 201, { data: await createOrder(req, await readBody(req)) });
-  const webhook = path.match(/^\/api\/webhooks\/payments\/(wave|orange_money|yas)$/);
+  const webhook = path.match(/^\/api\/webhooks\/payments\/(wave|orange_money|yas|senepay)$/);
   if (req.method === "POST" && webhook) return json(res, 200, { data: await paymentWebhook(req, webhook[1], await readBody(req)) });
   const payment = path.match(/^\/api\/orders\/(\d+)\/pay$/);
   if (req.method === "POST" && payment) {
     await authenticatedUserId(req);
-    return json(res, 503, { error: "A real payment provider adapter is required. Configure Wave, Orange Money or Yas before paying." });
+    const provider = senePayConfig();
+    if (!provider) {
+      return json(res, 503, { error: "SenePay is not configured. Set SENE_PAY_PUBLIC_KEY and SENE_PAY_SECRET_KEY before paying." });
+    }
+    return json(res, 200, {
+      data: {
+        provider: "senepay",
+        publicKey: provider.publicKey,
+        baseUrl: provider.baseUrl,
+        mode: process.env.NODE_ENV === "production" ? "live" : "test",
+        ready: true
+      }
+    });
   }
   const finalDelivery = path.match(/^\/api\/orders\/(\d+)\/deliver-final$/);
   if (req.method === "POST" && finalDelivery) {

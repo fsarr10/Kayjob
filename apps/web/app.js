@@ -3,27 +3,48 @@ const apiBase = String(window.KAYJOB_API_URL || "").replace(/\/$/, "");
 const categories = ["Informatique", "Design", "Média", "Éducation", "Digital", "Créatif", "Services physiques"];
 const cities = ["Dakar", "Thiès", "Saint-Louis", "Ziguinchor", "Kaolack", "Touba", "Mbour", "Diourbel"];
 
+const demoProfiles = [
+  { id: "srv-1", name: "Awa Diop", pseudo: "awadesign", city: "Kaolack", category: "Design", title: "Logo et identité visuelle", price: 5000, mode: "remote", score: 92, image: "././assets/portfolio-logo.svg" },
+  { id: "srv-2", name: "Mamadou Fall", pseudo: "mfallcode", city: "Dakar", category: "Informatique", title: "Site vitrine React", price: 15000, mode: "remote", score: 89, image: "././assets/portfolio-web.svg" },
+  { id: "srv-3", name: "Fatou Ndiaye", pseudo: "fatoulearn", city: "Saint-Louis", category: "Éducation", title: "Cours particuliers et correction", price: 3000, mode: "both", score: 86, image: "././assets/portfolio-course.svg" },
+  { id: "srv-4", name: "Cheikh Bâ", pseudo: "cheikhfix", city: "Thiès", category: "Services physiques", title: "Réparation PC et réseau", price: 7000, mode: "onsite", score: 82, image: "././assets/portfolio-repair.svg" },
+  { id: "srv-5", name: "Mariama Sarr", pseudo: "mariamacm", city: "Ziguinchor", category: "Digital", title: "Gestion Instagram et contenu", price: 10000, mode: "remote", score: 94, image: "././assets/portfolio-social.svg" },
+  { id: "srv-6", name: "Ibrahima Sy", pseudo: "ibrahimacam", city: "Mbour", category: "Média", title: "Photo événementielle et retouche", price: 12000, mode: "both", score: 88, image: "././assets/portfolio-photo.svg" },
+  { id: "srv-7", name: "Ndeye Mbaye", pseudo: "ndeyevideo", city: "Dakar", category: "Média", title: "Montage vidéo et reels TikTok", price: 9000, mode: "remote", score: 91, image: "././assets/portfolio-video.svg" },
+  { id: "srv-8", name: "Ousmane Sane", pseudo: "ousmanedev", city: "Louga", category: "Informatique", title: "Maintenance WordPress & SEO", price: 6000, mode: "both", score: 87, image: "././assets/portfolio-web.svg" }
+];
+
 const seed = {
-  services: [
-    talent("srv-1", "Awa Diop", "awadesign", "Kaolack", "Design", "Logo et identité visuelle", 5000, "remote", 92, "././assets/portfolio-logo.svg"),
-    talent("srv-2", "Mamadou Fall", "mfallcode", "Dakar", "Informatique", "Site vitrine React", 15000, "remote", 89, "././assets/portfolio-web.svg"),
-    talent("srv-3", "Fatou Ndiaye", "fatoulearn", "Saint-Louis", "Éducation", "Cours particuliers et correction", 3000, "both", 86, "././assets/portfolio-course.svg"),
-    talent("srv-4", "Cheikh Bâ", "cheikhfix", "Thiès", "Services physiques", "Réparation PC et réseau", 7000, "onsite", 82, "././assets/portfolio-repair.svg")
-  ],
+  services: demoProfiles.map((profile) => talent(profile.id, profile.name, profile.pseudo, profile.city, profile.category, profile.title, profile.price, profile.mode, profile.score, profile.image)),
   missions: [
-    { id: "mis-1", title: "Filmer une cérémonie", city: "Kaolack", category: "Média", budget: 18000, mode: "onsite", offers: 4 },
-    { id: "mis-2", title: "Créer une affiche de conférence", city: "Touba", category: "Design", budget: 6000, mode: "remote", offers: 9 }
+    { id: "mis-1", title: "Filmer une cérémonie universitaire", city: "Kaolack", category: "Média", budget: 18000, mode: "onsite", offers: 4 },
+    { id: "mis-2", title: "Créer une affiche de conférence", city: "Touba", category: "Design", budget: 6000, mode: "remote", offers: 9 },
+    { id: "mis-3", title: "Corriger un mémoire de licence", city: "Dakar", category: "Éducation", budget: 10000, mode: "remote", offers: 6 },
+    { id: "mis-4", title: "Créer des storys pour lancement produit", city: "Thiès", category: "Digital", budget: 8000, mode: "remote", offers: 3 },
+    { id: "mis-5", title: "Installer réseau et maintenance informatique", city: "Saint-Louis", category: "Services physiques", budget: 15000, mode: "onsite", offers: 5 }
   ],
   orders: [
     { id: "ord-1", serviceId: "srv-2", status: "escrowed", gross: 15000, commission: 1500, net: 13500 },
-    { id: "ord-2", serviceId: "srv-1", status: "delivered", gross: 5000, commission: 500, net: 4500 }
+    { id: "ord-2", serviceId: "srv-1", status: "delivered", gross: 5000, commission: 500, net: 4500 },
+    { id: "ord-3", serviceId: "srv-5", status: "paid_out", gross: 10000, commission: 1000, net: 9000 },
+    { id: "ord-4", serviceId: "srv-6", status: "in_progress", gross: 12000, commission: 1200, net: 10800 }
   ],
   messages: [
     { orderId: "ord-1", me: false, text: "Bonjour, je peux livrer une première version demain." },
-    { orderId: "ord-1", me: true, text: "Parfait, j'envoie le brief et les couleurs." }
+    { orderId: "ord-1", me: true, text: "Parfait, j'envoie le brief et les couleurs." },
+    { orderId: "ord-2", me: false, text: "Le logo a été livré en formats SVG et PNG." },
+    { orderId: "ord-2", me: true, text: "Merci, j’ai validé la version finale." },
+    { orderId: "ord-3", me: false, text: "Les storys du lancement sont publiées ce soir." },
+    { orderId: "ord-3", me: true, text: "Très bien, je te réévalue dans 48h." }
   ],
-  notifications: ["Paiement escrow confirmé.", "Nouvelle proposition reçue.", "Document étudiant à valider."],
-  disputes: [],
+  notifications: [
+    "Paiement escrow confirmé.",
+    "Nouvelle proposition reçue sur une mission Design.",
+    "Document étudiant à valider.",
+    "Nouvelle commande validée pour un profil média.",
+    "Un litige a été signalé en attente de traitement."
+  ],
+  disputes: [{ id: "lit-1", orderId: "ord-4", status: "open" }],
   selectedOrderId: "ord-1"
 };
 
@@ -31,6 +52,10 @@ let state = load();
 const view = document.querySelector("#view");
 const modal = document.querySelector("#modal");
 const modalForm = document.querySelector("#modalForm");
+
+function safeSeed() {
+  return structuredClone(seed);
+}
 
 async function apiFetch(path, options = {}) {
   const headers = { "content-type": "application/json", ...(options.headers || {}) };
@@ -46,9 +71,13 @@ async function syncRemote() {
   if (!apiBase) return;
   try {
     const services = await apiFetch("/api/services");
-    if (Array.isArray(services) && services.length) state.services = services.map((row) => ({ ...talent(row.id, row.full_name, row.pseudo || "talent", row.city || "Sénégal", row.category || "Compétence", row.title, Number(row.starting_price), row.delivery_mode || "remote", Number(row.sama_score || 0), "./assets/portfolio-web.svg"), avatar: row.avatar_url }));
+    if (Array.isArray(services) && services.length) {
+      state.services = services.map((row) => ({ ...talent(row.id, row.full_name, row.pseudo || "talent", row.city || "Sénégal", row.category || "Compétence", row.title, Number(row.starting_price), row.delivery_mode || "remote", Number(row.sama_score || 0), "./assets/portfolio-web.svg"), avatar: row.avatar_url }));
+    }
     const missions = await apiFetch("/api/missions");
-    if (Array.isArray(missions)) state.missions = missions.map((row) => ({ id: row.id, title: row.title, city: row.city || "Sénégal", category: row.category || "Mission", budget: Number(row.budget_max), mode: row.delivery_mode || "remote", offers: 0 }));
+    if (Array.isArray(missions)) {
+      state.missions = missions.map((row) => ({ id: row.id, title: row.title, city: row.city || "Sénégal", category: row.category || "Mission", budget: Number(row.budget_max), mode: row.delivery_mode || "remote", offers: 0 }));
+    }
     if (sessionStorage.getItem("kayjob.session")) {
       const orders = await apiFetch("/api/me/orders");
       state.orders = Array.isArray(orders) ? orders.map((row) => ({ id: `KJ-${row.id}`, apiId: row.id, title: row.title, status: row.status, gross: Number(row.amount_total), net: Number(row.amount_net_provider) })) : [];
@@ -58,7 +87,10 @@ async function syncRemote() {
     render();
   } catch (error) {
     state.remote = false;
+    state = { ...safeSeed(), ...state, notifications: [...(state.notifications || []), "Le backend est indisponible, le mode démonstration reste actif."], disputes: state.disputes || [] };
     console.warn("KayJob API offline, mode démo activé", error.message);
+    save();
+    render();
   }
 }
 
@@ -67,18 +99,18 @@ function talent(id, name, pseudo, city, category, title, price, mode, score, ima
     id, name, pseudo, city, category, title, price, mode, score, rating: 4.8,
     skills: [category, mode === "onsite" ? "Présentiel" : "Remote"],
     works: [
-      { title: "Réalisation client", type: "Image", image, url: "https://example.com/kayjob/work", description: "Mission validée avec livrables et avis." },
-      { title: "Lien portfolio", type: "Lien", image, url: "https://example.com/kayjob/portfolio", description: "Projet externe visible par les recruteurs." }
+      { title: "Réalisation client", type: "Image", image, url: "https://kayjob.sn/portfolio", description: "Mission validée avec livrables et avis." },
+      { title: "Lien portfolio", type: "Lien", image, url: "https://kayjob.sn/projets", description: "Projet externe visible par les recruteurs." }
     ]
   };
 }
 
 function load() {
   try {
-    if (apiBase) return { services: [], missions: [], orders: [], messages: [], notifications: [], disputes: [], selectedOrderId: null };
-    return JSON.parse(localStorage.getItem(storageKey)) || structuredClone(seed);
+    const saved = JSON.parse(localStorage.getItem(storageKey));
+    return saved || safeSeed();
   } catch {
-    return structuredClone(seed);
+    return safeSeed();
   }
 }
 
@@ -236,7 +268,7 @@ function admin() {
     </section>
     <section class="grid three" style="margin-top:16px">
       <article class="panel"><h2>Vérifications</h2><p class="meta">Carte étudiant, téléphone et email universitaire.</p></article>
-      <article class="panel"><h2>Paiements</h2><p class="meta">Wave, Orange Money, Free Money, carte.</p></article>
+      <article class="panel"><h2>Paiements</h2><p class="meta">SenePay, Wave, Orange Money, carte.</p></article>
       <article class="panel"><h2>Régions</h2><p class="meta">Dakar, Thiès, Saint-Louis, Ziguinchor, Kaolack.</p></article>
     </section>`;
 }
@@ -380,7 +412,7 @@ modalForm.addEventListener("submit", (event) => {
     state.missions.unshift({ id: `mis-${Date.now()}`, title: data.get("title"), city: data.get("city"), category: "Design", budget: Number(data.get("budget")), mode: "remote", offers: 0 });
   }
   if (action === "work") {
-    state.services[0].works.unshift(makePortfolio(data.get("title"), "Lien", "././assets/portfolio-web.svg", data.get("url") || "https://example.com/kayjob", data.get("description")));
+    state.services[0].works.unshift(makePortfolio(data.get("title"), "Lien", "././assets/portfolio-web.svg", data.get("url") || "https://kayjob.sn/projets", data.get("description")));
   }
   state.notifications.unshift("Action enregistrée dans KayJob.");
   save();

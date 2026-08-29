@@ -12,6 +12,8 @@ services:
         value: production
       - key: DATABASE_URL
         sync: false
+      - key: CORS_ORIGIN
+        sync: false
       - key: R2_ACCOUNT_ID
         sync: false
       - key: R2_ACCESS_KEY_ID
@@ -20,7 +22,13 @@ services:
         sync: false
       - key: R2_BUCKET
         value: kayjob-private
-      - key: CORS_ORIGIN
+      - key: SENE_PAY_BASE_URL
+        value: https://api.sene-pay.com
+      - key: SENE_PAY_PUBLIC_KEY
+        sync: false
+      - key: SENE_PAY_SECRET_KEY
+        sync: false
+      - key: SENE_PAY_WEBHOOK_SECRET
         sync: false
       - key: WAVE_WEBHOOK_SECRET
         sync: false

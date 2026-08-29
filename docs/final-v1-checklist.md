@@ -1,6 +1,9 @@
 # Checklist V1 KayJob
 
-- Site public avec identité KayJob et logo intégré.
+## ✅ Terminé
+
+- Application publique unique à la racine sans site vitrine distinct.
+- Interface KayJob avec identité visuelle, navigation, dashboard et parcours de gestion.
 - Recherche nationale multi-villes avec logique remote vs sur place.
 - Profils publics avec portfolio image/lien.
 - Ajout local de réalisations sur un profil.
@@ -12,7 +15,15 @@
 - Ouverture de litige et suivi admin.
 - Espace client/prestataire/notifications.
 - Back-office statistiques, vérifications, paiements et régions.
-- App mobile Expo 54 avec identité KayJob, logo SVG et navigation Expo Router.
-- App mobile structurée avec écrans Accueil, Services, Missions, Commandes, Messages, Portfolio, Compte et Admin.
-- Site public enrichi avec catégories, confiance, modèle économique et accès app web.
-- Schéma SQL pour industrialisation Laravel.
+- API Node.js fonctionnelle avec /health OK.
+- Base de données Neon connectée et variables runtime prêtes.
+- Build statique validé avec `npm run build`.
+- Configuration SenePay ajoutée dans les variables d’environnement.
+
+## 🔜 À finaliser pour production
+
+- Déployer l’API sur Render avec les variables secrètes de production.
+- Déployer le front racine sur le service web public.
+- Renseigner les clés SenePay production et le webhook secret exact.
+- Vérifier le flux complet paiement → séquestre → livraison → libération.
+- Confirmer les domaines publics et CORS de production.

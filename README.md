@@ -4,25 +4,21 @@ Marketplace nationale des talents étudiants au Sénégal.
 
 ## Contenu
 
-- `public/` : site vitrine produit complet et autonome.
-- `apps/web/` : application web KayJob avec dashboard, recherche, missions, commandes, messages, portfolio et admin.
+- `public/` : application web KayJob unique, présentée directement à l’entrée publique et sans page vitrine séparée.
+- `apps/web/` : source de l’application web KayJob avec dashboard, recherche, missions, commandes, messages, portfolio et admin.
 - `database/schema.sql` : schéma PostgreSQL MVP compatible Neon.
 - `database/neon-setup.md` : guide de connexion Neon.
 - `docs/` : spécifications, architecture, business model et lancement.
 - `apps/mobile/` : application mobile Expo 54 avec Expo Router.
 - `apps/api/` : API Node.js connectée à Neon, séquestre, transitions de commandes et sécurité des messages.
 
-## Ouvrir le site
+## Ouvrir l'application web
 
 ```bash
 xdg-open /home/falilou/Bureau/Kayjob/public/index.html
 ```
 
-## Ouvrir l'application web
-
-```bash
-xdg-open /home/falilou/Bureau/Kayjob/apps/web/index.html
-```
+La racine publique sert désormais directement l’application KayJob, sans séparation en site vitrine distinct.
 
 ## Application mobile
 

@@ -3,255 +3,51 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="KayJob connecte les étudiants prestataires et les clients dans tout le Sénégal." />
-    <title>KayJob - Talents étudiants au Sénégal</title>
+    <meta name="description" content="KayJob est l’application de marketplace pour talents étudiants et missions locales en Afrique francophone." />
+    <meta name="theme-color" content="#137a4b" />
+    <title>KayJob App</title>
     <link rel="icon" href="./assets/kayjob-logo.svg" type="image/svg+xml" />
-    <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <header class="topbar">
-      <a class="brand" href="#home"><img src="./assets/kayjob-logo.svg" alt="" /><span>KayJob</span></a>
-      <nav class="nav" aria-label="Navigation principale">
-        <a href="#how">Parcours</a>
-        <a href="#services">Services</a>
-        <a href="#missions">Missions</a>
-        <a href="#orders">Commandes</a>
-        <a href="#workspace">Espace</a>
-        <a href="#business">Modèle</a>
-        <a href="#admin">Admin</a>
-      </nav>
-      <button class="primary small" id="openSignup">Créer un compte</button>
-    </header>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="#dashboard">
+          <img src="./assets/kayjob-logo.svg" alt="" />
+          <span>KayJob</span>
+        </a>
+        <nav class="side-nav" aria-label="Navigation application">
+          <a href="#dashboard" data-route="dashboard">Tableau de bord</a>
+          <a href="#discover" data-route="discover">Découvrir</a>
+          <a href="#missions" data-route="missions">Missions</a>
+          <a href="#orders" data-route="orders">Commandes</a>
+          <a href="#messages" data-route="messages">Messages</a>
+          <a href="#portfolio" data-route="portfolio">Portfolio</a>
+          <a href="#admin" data-route="admin">Admin</a>
+        </nav>
+      </aside>
 
-    <main>
-      <section id="home" class="hero">
-        <img class="hero-bg" src="./assets/hero.svg" alt="Étudiants sénégalais collaborant sur KayJob" />
-        <div class="hero-content">
-          <img class="hero-logo" src="./assets/kayjob-logo.svg" alt="" />
-          <p class="eyebrow">Marketplace nationale</p>
-          <h1>KayJob</h1>
-          <p class="tagline">Ton talent peut devenir ton premier revenu.</p>
-          <div class="hero-actions">
-            <a class="primary" href="#services">Trouver un talent</a>
-            <a class="secondary" href="#missions">Publier une mission</a>
-          </div>
-        </div>
-      </section>
-
-      <section class="metrics">
-        <article><strong id="metricStudents">0</strong><span>prestataires actifs</span></article>
-        <article><strong id="metricRemote">0</strong><span>services à distance</span></article>
-        <article><strong>8-12%</strong><span>commission configurable</span></article>
-        <article><strong>14</strong><span>régions couvertes</span></article>
-      </section>
-
-      <section id="how" class="section">
-        <div class="section-head"><div><p class="eyebrow">Parcours</p><h2>De la première mission au portfolio</h2></div></div>
-        <div class="journey">
-          <article><span>1</span><h3>Profil vérifié</h3><p>Ville, compétences, disponibilité, documents privés et badge public.</p></article>
-          <article><span>2</span><h3>Commande sécurisée</h3><p>Le paiement client est bloqué en séquestre jusqu'à validation.</p></article>
-          <article><span>3</span><h3>Réalisation publiée</h3><p>Images, liens, livrables et avis enrichissent le profil public.</p></article>
-          <article><span>4</span><h3>Opportunité</h3><p>Le portfolio sert de preuve pour stages, emplois et nouveaux clients.</p></article>
-        </div>
-      </section>
-
-      <section id="categories" class="section alt">
-        <div class="section-head"><div><p class="eyebrow">Compétences</p><h2>Des services numériques nationaux et des prestations locales</h2></div></div>
-        <div class="category-grid">
-          <article><h3>Informatique</h3><p>Développement web/mobile, WordPress, dépannage, bases de données, cybersécurité.</p></article>
-          <article><h3>Design</h3><p>Logo, affiche, flyer, CV, présentation et identité visuelle pour PME.</p></article>
-          <article><h3>Média</h3><p>Montage vidéo, photographie, motion design, TikTok, YouTube et retouche.</p></article>
-          <article><h3>Éducation</h3><p>Cours particuliers, correction, traduction, rédaction et accompagnement scolaire.</p></article>
-          <article><h3>Digital</h3><p>Community management, publicité Meta, contenu, gestion de page et SEO.</p></article>
-          <article><h3>Services physiques</h3><p>Réparation, réseau, assistance technique et photo événementielle sur place.</p></article>
-        </div>
-      </section>
-
-      <section id="services" class="section alt">
-        <div class="section-head">
-          <div><p class="eyebrow">Mode Services</p><h2>Rechercher un prestataire</h2></div>
-          <div class="head-actions">
-            <button class="secondary" id="resetFilters">Réinitialiser</button>
-            <button class="primary" id="publishService">Publier un service</button>
-          </div>
-        </div>
-        <div class="filters">
-          <label>Compétence<input id="searchInput" type="search" placeholder="logo, dev web, cours..." /></label>
-          <label>Catégorie<select id="categoryFilter"></select></label>
-          <label>Mode<select id="modeFilter"><option value="all">Tous</option><option value="remote">À distance</option><option value="onsite">Sur place</option><option value="both">Les deux</option></select></label>
-          <label>Ville<select id="cityFilter"></select></label>
-          <label>Budget max<input id="budgetFilter" type="number" min="0" step="1000" placeholder="15000" /></label>
-        </div>
-        <p class="search-note" id="searchNote"></p>
-        <div class="grid" id="serviceGrid"></div>
-      </section>
-
-      <section id="profile" class="section" hidden>
-        <div class="section-head">
-          <div><p class="eyebrow">Portfolio public</p><h2 id="profileName"></h2></div>
-          <button class="secondary" id="closeProfile">Fermer</button>
-        </div>
-        <div class="profile-layout">
-          <aside class="profile-card">
-            <div class="avatar" id="profileAvatar"></div>
-            <h3 id="profilePseudo"></h3>
-            <p id="profileBio"></p>
-            <div class="trust-row" id="profileTrust"></div>
-          </aside>
+      <div class="main">
+        <header class="topbar">
           <div>
-            <div class="profile-toolbar"><h3>Réalisations</h3><button class="primary small" id="addPortfolioItem">Ajouter</button></div>
-            <div class="portfolio-grid" id="portfolioGrid"></div>
-            <div class="review-list" id="profileReviews"></div>
+            <p class="eyebrow" id="routeEyebrow">Application</p>
+            <h1 id="routeTitle">Tableau de bord</h1>
           </div>
-        </div>
-      </section>
-
-      <section id="missions" class="section">
-        <div class="section-head">
-          <div><p class="eyebrow">Mode Missions</p><h2>Besoins publiés par les clients</h2></div>
-          <button class="primary" id="publishMission">Publier une mission</button>
-        </div>
-        <div class="mission-board" id="missionBoard"></div>
-      </section>
-
-      <section id="orders" class="section alt">
-        <div class="section-head"><div><p class="eyebrow">Escrow</p><h2>Commande et paiement sécurisé</h2></div></div>
-        <p class="muted" id="selectedOrder"></p>
-        <div class="order-flow" id="orderFlow"></div>
-        <div class="order-actions">
-          <button class="secondary" id="markDelivered">Marquer livré</button>
-          <button class="primary" id="validateDelivery">Valider et libérer</button>
-          <button class="secondary" id="openDispute">Ouvrir un litige</button>
-        </div>
-        <div class="message-panel">
-          <h3>Messagerie intégrée</h3>
-          <div class="messages" id="messages"></div>
-          <form id="messageForm" class="message-form">
-            <input id="messageInput" placeholder="Écrire un message..." />
-            <button class="primary small" type="submit">Envoyer</button>
-          </form>
-        </div>
-      </section>
-
-      <section id="workspace" class="section">
-        <div class="section-head">
-          <div><p class="eyebrow">Application</p><h2>Espaces client, prestataire et notifications</h2></div>
-        </div>
-        <div class="tabs" role="tablist" aria-label="Espaces KayJob">
-          <button class="tab active" data-tab="client">Client</button>
-          <button class="tab" data-tab="student">Prestataire</button>
-          <button class="tab" data-tab="notifications">Notifications</button>
-        </div>
-        <div class="workspace-grid" id="workspaceGrid"></div>
-        <div class="app-link-panel">
-          <div>
-            <h3>Application web KayJob</h3>
-            <p>Accède à l'expérience applicative complète : dashboard, recherche, commandes, messages, portfolio et admin.</p>
+          <div class="top-actions">
+            <button class="ghost" id="authButton">Se connecter</button>
+            <button class="ghost" id="resetDemo">Réinitialiser</button>
+            <button class="primary" id="quickMission">Publier une mission</button>
           </div>
-          <a class="primary" href="../apps/web/index.html">Ouvrir l'app web</a>
-        </div>
-      </section>
+        </header>
+        <main id="view" class="view"></main>
+      </div>
+    </div>
 
-      <section id="business" class="section alt">
-        <div class="section-head"><div><p class="eyebrow">Business</p><h2>Commission claire, paiement protégé, revenus traçables</h2></div></div>
-        <div class="business-grid">
-          <article><strong>10%</strong><h3>Commission par défaut</h3><p>Paramétrable selon paliers et minimum de 250 FCFA pour les petites missions.</p></article>
-          <article><strong>Escrow</strong><h3>Paiement séquestré</h3><p>Le client paie, KayJob bloque, le prestataire livre, puis le net est libéré.</p></article>
-          <article><strong>V2</strong><h3>Sources futures</h3><p>Mise en avant, abonnements entreprises, badges de certification et services premium.</p></article>
-        </div>
-      </section>
-
-      <section id="trust" class="section">
-        <div class="section-head"><div><p class="eyebrow">Confiance</p><h2>La preuve avant la promesse</h2></div></div>
-        <div class="trust-grid">
-          <article><h3>Identité vérifiée</h3><p>Les documents restent privés. Le profil public affiche seulement le statut de vérification.</p></article>
-          <article><h3>Réalisations visibles</h3><p>Chaque talent peut montrer images, liens, missions livrées et avis associés.</p></article>
-          <article><h3>Litiges arbitrés</h3><p>L'admin traite les désaccords avec les preuves de livraison, messages et paiements.</p></article>
-        </div>
-      </section>
-
-      <section id="admin" class="section">
-        <div class="section-head"><div><p class="eyebrow">Back-office</p><h2>Suivi national</h2></div></div>
-        <div class="admin-grid" id="adminGrid"></div>
-        <div class="admin-panels">
-          <article><h3>Vérifications</h3><ul id="verificationQueue"></ul></article>
-          <article><h3>Transactions escrow</h3><ul id="paymentQueue"></ul></article>
-          <article><h3>Demande par région</h3><ul id="regionStats"></ul></article>
-        </div>
-      </section>
-    </main>
-
-    <footer class="footer"><strong>KayJob</strong><span>Marketplace des talents étudiants au Sénégal</span><a href="#home">Retour en haut</a></footer>
-
-    <dialog id="signupDialog">
-      <form method="dialog" class="dialog-card">
-        <h2>Créer un compte KayJob</h2>
-        <label>Téléphone ou email<input placeholder="+221 77 000 00 00" /></label>
-        <label>Ville<select><option>Dakar</option><option>Thiès</option><option>Saint-Louis</option><option>Ziguinchor</option><option>Kaolack</option><option>Touba</option><option>Mbour</option><option>Diourbel</option></select></label>
-        <div class="dialog-actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="confirm">Recevoir OTP</button></div>
-      </form>
+    <dialog id="modal">
+      <form method="dialog" class="modal-card" id="modalForm"></form>
     </dialog>
 
-    <dialog id="serviceFormDialog">
-      <form method="dialog" class="dialog-card" id="serviceForm">
-        <h2>Nouveau service</h2>
-        <label>Titre<input id="serviceTitle" required placeholder="Ex. Création logo professionnel" /></label>
-        <label>Catégorie<select id="serviceCategory"></select></label>
-        <label>Mode<select id="serviceMode"><option value="remote">À distance</option><option value="onsite">Sur place</option><option value="both">Les deux</option></select></label>
-        <label>Prix de départ<input id="servicePrice" type="number" min="1000" step="500" required placeholder="5000" /></label>
-        <div class="dialog-actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="confirm">Publier</button></div>
-      </form>
-    </dialog>
-
-    <dialog id="missionFormDialog">
-      <form method="dialog" class="dialog-card" id="missionForm">
-        <h2>Nouvelle mission</h2>
-        <label>Titre<input id="missionTitle" required placeholder="Ex. Filmer un événement" /></label>
-        <label>Ville<select id="missionCity"></select></label>
-        <label>Mode<select id="missionMode"><option value="remote">À distance</option><option value="onsite">Sur place</option><option value="both">Les deux</option></select></label>
-        <label>Budget<input id="missionBudget" type="number" min="1000" step="500" required placeholder="10000" /></label>
-        <div class="dialog-actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="confirm">Publier</button></div>
-      </form>
-    </dialog>
-
-    <dialog id="reviewDialog">
-      <form method="dialog" class="dialog-card" id="reviewForm">
-        <h2>Laisser un avis</h2>
-        <label>Note<select id="reviewRating"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></label>
-        <label>Commentaire<input id="reviewComment" required placeholder="Qualité, délai, communication..." /></label>
-        <div class="dialog-actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="confirm">Publier l'avis</button></div>
-      </form>
-    </dialog>
-
-    <dialog id="disputeDialog">
-      <form method="dialog" class="dialog-card" id="disputeForm">
-        <h2>Ouvrir un litige</h2>
-        <label>Motif<input id="disputeReason" required placeholder="Décris le désaccord sur la livraison" /></label>
-        <div class="dialog-actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="confirm">Envoyer admin</button></div>
-      </form>
-    </dialog>
-
-    <dialog id="portfolioDialog">
-      <form method="dialog" class="dialog-card wide">
-        <img id="portfolioPreview" class="portfolio-preview" alt="" />
-        <h2 id="portfolioTitle"></h2>
-        <p id="portfolioDescription" class="muted"></p>
-        <div class="dialog-actions"><a class="secondary" id="portfolioLink" href="#" target="_blank" rel="noreferrer">Voir le lien</a><button class="primary" value="close">Fermer</button></div>
-      </form>
-    </dialog>
-
-    <dialog id="portfolioFormDialog">
-      <form method="dialog" class="dialog-card" id="portfolioForm">
-        <h2>Nouvelle réalisation</h2>
-        <label>Titre<input id="portfolioFormTitle" placeholder="Ex. Affiche conférence" required /></label>
-        <label>Type<select id="portfolioFormType"><option>Image</option><option>Lien</option></select></label>
-        <label>Lien<input id="portfolioFormUrl" placeholder="https://..." /></label>
-        <label>Description<input id="portfolioFormDescription" placeholder="Résultat livré, contexte client..." required /></label>
-        <div class="dialog-actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="confirm">Ajouter</button></div>
-      </form>
-    </dialog>
-
+    <script>window.KAYJOB_API_URL = window.KAYJOB_API_URL || "";</script>
     <script src="./app.js"></script>
   </body>
 </html>
