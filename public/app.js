@@ -83,6 +83,7 @@ const seed = {
 };
 
 let state = load();
+if (!state.viewingProfileId) state.viewingProfileId = null;
 const view = document.querySelector("#view");
 const modal = document.querySelector("#modal");
 const modalForm = document.querySelector("#modalForm");
@@ -223,6 +224,17 @@ function talent(id, name, pseudo, city, category, title, price, mode, score, ima
   };
 }
 
+function makePortfolio(title, type, image, url, description) {
+  return {
+    title,
+    type,
+    image,
+    url,
+    description,
+    createdAt: new Date().toISOString()
+  };
+}
+
 function load() {
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey));
@@ -269,6 +281,10 @@ function setTitle(route) {
   document.querySelectorAll("[data-route]").forEach((link) => link.classList.toggle("active", link.dataset.route === route));
 }
 
+function hasActiveSession() {
+  return Boolean(sessionStorage.getItem("kayjob.session"));
+}
+
 function isUserAdmin() {
   const userJson = sessionStorage.getItem("kayjob.user");
   if (!userJson) return false;
@@ -278,22 +294,87 @@ function isUserAdmin() {
   } catch { return false; }
 }
 
+function getCurrentUser() {
+  try {
+    return JSON.parse(sessionStorage.getItem("kayjob.user") || "null");
+  } catch {
+    return null;
+  }
+}
+
+function getCurrentProfile() {
+  const user = getCurrentUser();
+  if (!user) return null;
+
+  const identifiers = new Set();
+  if (user.full_name) identifiers.add(String(user.full_name).trim().toLowerCase());
+  if (user.email) identifiers.add(String(user.email).trim().toLowerCase());
+  if (user.phone) identifiers.add(String(user.phone).trim().toLowerCase());
+  const shortEmail = user.email ? String(user.email).trim().split("@")[0].toLowerCase() : "";
+  if (shortEmail) identifiers.add(shortEmail);
+
+  return state.services.find((service) => {
+    const serviceName = String(service.name || "").trim().toLowerCase();
+    const servicePseudo = String(service.pseudo || "").trim().toLowerCase();
+    return [...identifiers].some((identifier) => {
+      if (!identifier) return false;
+      return identifier === serviceName || identifier === servicePseudo ||
+        serviceName.includes(identifier) || servicePseudo.includes(identifier) ||
+        identifier.includes(serviceName) || identifier.includes(servicePseudo);
+    });
+  }) || null;
+}
+
+function getMyProfileId() {
+  return getCurrentProfile()?.id || null;
+}
+
+function ensureLoggedInForAction(modalType = "auth") {
+  if (!sessionStorage.getItem("kayjob.session")) {
+    openModal(modalType);
+    return false;
+  }
+  return true;
+}
+
 function render() {
   const route = currentRoute();
   if (route === "admin" && !isUserAdmin()) {
     location.hash = "dashboard";
     return;
   }
-  setTitle(route);
   const pages = { dashboard, discover, missions, orders, messages, portfolio, admin, login };
-  view.innerHTML = (pages[route] || dashboard)();
-  bindActions();
+  const hash = route;
+  if (hash === "portfolio" && !state.viewingProfileId) {
+    const myProfile = getCurrentProfile();
+    if (myProfile) state.viewingProfileId = myProfile.id;
+  }
+  if (hash !== "portfolio") state.viewingProfileId = null;
+  setTitle(route);
+  const page = pages[hash] || pages.dashboard;
+  view.innerHTML = page();
+  const isAdmin = isUserAdmin();
+  const adminLink = document.querySelector("[data-route='admin']");
+  if (adminLink) adminLink.style.display = isAdmin ? "" : "none";
   const authButton = document.querySelector("#authButton");
-  if (authButton) authButton.textContent = sessionStorage.getItem("kayjob.session") ? "Session active" : "Se connecter";
+  if (authButton) authButton.textContent = "Mon compte";
+  const quickMission = document.querySelector("#quickMission");
+  if (quickMission) quickMission.style.display = hasActiveSession() ? "" : "none";
+  bindActions();
 }
 
 function dashboard() {
   const gmv = state.orders.reduce((sum, order) => sum + order.gross, 0);
+  const quickActions = hasActiveSession() ? `
+    <div class="actions">
+      <button class="primary" data-modal="service">Publier un service</button>
+      <button class="secondary" data-modal="mission">Publier une mission</button>
+      <button class="secondary" data-route-to="portfolio">Voir portfolio</button>
+    </div>` : `
+    <div class="actions">
+      <button class="primary" data-route-to="discover">Découvrir les talents</button>
+      <button class="secondary" data-route-to="login">Se connecter</button>
+    </div>`;
   return `
     <section class="grid four">
       ${metric(state.services.length, "Prestataires", "profils actifs")}
@@ -308,11 +389,7 @@ function dashboard() {
       </div>
       <div class="panel">
         <h2>Actions rapides</h2>
-        <div class="actions">
-          <button class="primary" data-modal="service">Publier un service</button>
-          <button class="secondary" data-modal="mission">Publier une mission</button>
-          <button class="secondary" data-route-to="portfolio">Voir portfolio</button>
-        </div>
+        ${quickActions}
       </div>
     </section>`;
 }
@@ -348,12 +425,13 @@ function serviceCards(rows) {
 }
 
 function missions() {
+  const publishButton = hasActiveSession() ? `<div class="actions" style="margin-bottom:16px"><button class="primary" data-modal="mission">Publier une mission</button></div>` : `<p class="meta" style="margin-bottom:16px">Connecte-toi pour publier une mission et recevoir des devis.</p>`;
   return `
-    <div class="actions" style="margin-bottom:16px"><button class="primary" data-modal="mission">Publier une mission</button></div>
+    ${publishButton}
     <section class="list">${state.missions.map((item) => `
       <article class="list-item">
         <div><h3>${item.title}</h3><p class="meta">${item.city} · ${item.category} · ${mode(item.mode)} · ${item.offers} devis</p></div>
-        <div class="actions"><strong>${money(item.budget)}</strong><button class="secondary" data-offer="${item.id}">Faire un devis</button></div>
+        <div class="actions"><strong>${money(item.budget)}</strong>${hasActiveSession() ? `<button class="secondary" data-offer="${item.id}">Faire un devis</button>` : ""}</div>
       </article>`).join("")}</section>`;
 }
 
@@ -365,6 +443,19 @@ function orderRow(order) {
   const item = state.services.find((service) => service.id === order.serviceId);
   const adminButtons = isUserAdmin() ? `<button class="primary" data-paid="${order.id}">Valider</button><button class="danger" data-dispute="${order.id}">Litige</button>` : "";
   return `<article class="list-item"><div><h3>${order.id} · ${item?.title || order.title || "Commande KayJob"}</h3><p class="meta">${money(order.gross ?? order.amount_total ?? 0)} · ${orderStatus(order.status)}</p></div><div class="actions"><button class="secondary" data-select-order="${order.id}">Messages</button>${adminButtons}</div></article>`;
+}
+
+function isViewingOwnProfile() {
+  const myProfileId = getMyProfileId();
+  if (!myProfileId) return false;
+  return !state.viewingProfileId || state.viewingProfileId === myProfileId;
+}
+
+function getViewingProfile() {
+  if (state.viewingProfileId) {
+    return state.services.find((service) => service.id === state.viewingProfileId) || getCurrentProfile() || state.services[0] || null;
+  }
+  return getCurrentProfile() || state.services[0] || null;
 }
 
 function messages() {
@@ -379,7 +470,6 @@ function messages() {
       <aside class="chat-list">
         <div class="chat-list-header">
           <h2>Conversations</h2>
-          <button class="secondary" type="button">Nouveau</button>
         </div>
         ${(state.messages || []).map((thread) => {
           const active = thread.orderId === order.id ? "active" : "";
@@ -403,11 +493,7 @@ function messages() {
               <p>${conversation.online ? "En ligne" : "Dernière activité il y a 10 min"}</p>
             </div>
           </div>
-          <div class="chat-header-actions">
-            <button class="secondary" type="button">Appel</button>
-            <button class="secondary" type="button">Vidéos</button>
-            <button class="primary" type="button">Commande</button>
-          </div>
+          <div class="chat-header-actions"></div>
         </header>
 
         <div class="chat-messages">
@@ -435,11 +521,19 @@ function messages() {
 }
 
 function portfolio() {
-  const profile = state.services[0];
+  const profile = getViewingProfile();
   if (!profile) return `<section class="panel"><h2>Portfolio</h2><p class="meta">Aucun profil prestataire disponible pour le moment.</p></section>`;
+  const isOwn = isViewingOwnProfile();
+  const addWorkButton = isOwn ? `<button class="primary" data-modal="work">Ajouter une réalisation</button>` : "";
+  const backButton = isOwn ? "" : `<button class="secondary" data-route-to="discover">← Retour</button>`;
   return `
     <section class="split">
-      <aside class="panel"><h2>kayjob.sn/${profile.pseudo}</h2><p>${profile.name} · ${profile.city}</p><span class="badge yellow">SamaScore ${profile.score}/100</span><div class="actions" style="margin-top:14px"><button class="primary" data-modal="work">Ajouter une réalisation</button></div></aside>
+      <aside class="panel">
+        <h2>kayjob.sn/${profile.pseudo}</h2>
+        <p>${profile.name} · ${profile.city}</p>
+        <span class="badge yellow">SamaScore ${profile.score}/100</span>
+        <div class="actions" style="margin-top:14px">${addWorkButton}${backButton}</div>
+      </aside>
       <div class="work-grid">${profile.works.map((work) => `<article class="work-card"><img src="${work.image}" alt="" /><div><span class="badge ${work.type === "Lien" ? "blue" : ""}">${work.type}</span><h3>${work.title}</h3><p class="meta">${work.description}</p><a class="primary" href="${work.url}" target="_blank" rel="noreferrer">Ouvrir</a></div></article>`).join("")}</div>
     </section>`;
 }
@@ -493,6 +587,18 @@ function option(item) {
 }
 
 function openModal(type) {
+  if ((type === "service" || type === "mission") && !sessionStorage.getItem("kayjob.session")) {
+    const forms = {
+      auth: `<h2>Connexion KayJob</h2><p class="meta">Utilise ton email ou ton téléphone avec un mot de passe.</p><label>Email ou téléphone<input name="accountEmail" required placeholder="vous@exemple.com ou +221 77 000 00 00" /></label><label>Mot de passe<input name="accountPassword" type="password" required placeholder="••••••••" /></label><div class="actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="auth-login">Se connecter</button></div>`
+    };
+    modalForm.innerHTML = forms.auth;
+    modal.showModal();
+    return;
+  }
+  if (type === "work" && !isViewingOwnProfile()) {
+    alert("Tu ne peux modifier que ton propre portfolio.");
+    return;
+  }
   const forms = {
     auth: `<h2>Connexion KayJob</h2><p class="meta">Utilise ton email ou ton téléphone avec un mot de passe.</p><label>Email ou téléphone<input name="accountEmail" required placeholder="vous@exemple.com ou +221 77 000 00 00" /></label><label>Mot de passe<input name="accountPassword" type="password" required placeholder="••••••••" /></label><div class="actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="auth-login">Se connecter</button></div>`,
     service: `<h2>Nouveau service</h2><label>Titre<input name="title" required /></label><label>Catégorie<select name="category">${categories.map(option).join("")}</select></label><label>Prix<input name="price" type="number" required /></label><div class="actions"><button class="secondary" value="cancel">Annuler</button><button class="primary" value="service">Publier</button></div>`,
@@ -506,11 +612,25 @@ function openModal(type) {
 function bindActions() {
   const adminLink = document.querySelector("[data-route='admin']");
   if (adminLink) adminLink.style.display = isUserAdmin() ? "" : "none";
-  document.querySelector("#authButton")?.addEventListener("click", () => { location.hash = "login"; });
+  document.querySelector("#authButton")?.addEventListener("click", () => {
+    if (sessionStorage.getItem("kayjob.session")) {
+      const myProfile = getCurrentProfile();
+      if (myProfile) state.viewingProfileId = myProfile.id;
+      location.hash = "portfolio";
+      return;
+    }
+    location.hash = "login";
+  });
   document.querySelectorAll("[data-route-to]").forEach((button) => button.addEventListener("click", () => { location.hash = button.dataset.routeTo; }));
   document.querySelectorAll("[data-modal]").forEach((button) => button.addEventListener("click", () => openModal(button.dataset.modal)));
-  document.querySelectorAll("[data-order]").forEach((button) => button.addEventListener("click", () => createOrder(button.dataset.order)));
-  document.querySelectorAll("[data-offer]").forEach((button) => button.addEventListener("click", () => addOffer(button.dataset.offer)));
+  document.querySelectorAll("[data-order]").forEach((button) => button.addEventListener("click", () => {
+    if (!ensureLoggedInForAction("auth")) return;
+    createOrder(button.dataset.order);
+  }));
+  document.querySelectorAll("[data-offer]").forEach((button) => button.addEventListener("click", () => {
+    if (!ensureLoggedInForAction("auth")) return;
+    addOffer(button.dataset.offer);
+  }));
   document.querySelectorAll("[data-paid]").forEach((button) => button.addEventListener("click", () => updateOrder(button.dataset.paid, "paid_out")));
   document.querySelectorAll("[data-dispute]").forEach((button) => button.addEventListener("click", () => openDispute(button.dataset.dispute)));
   document.querySelectorAll("[data-verify]").forEach((button) => button.addEventListener("click", () => { alert(`Profil ${button.dataset.verify} vérifié et activé.`); state.notifications.unshift(`Vérification acceptée pour ${button.dataset.verify}`); save(); render(); }));
@@ -520,7 +640,11 @@ function bindActions() {
   document.querySelectorAll("[data-review]").forEach((button) => button.addEventListener("click", () => alert(`Examen du litige ${button.dataset.review} - collecte des preuves en cours.`)));
   document.querySelectorAll("[data-resolve]").forEach((button) => button.addEventListener("click", () => { const litige = state.disputes.find((l) => l.id === button.dataset.resolve); if (litige) { litige.status = "resolved"; state.notifications.unshift(`Litige ${button.dataset.resolve} résolu`); save(); render(); } }));
   document.querySelectorAll("[data-select-order]").forEach((button) => button.addEventListener("click", () => { state.selectedOrderId = button.dataset.selectOrder; save(); location.hash = "messages"; }));
-  document.querySelectorAll("[data-profile]").forEach((button) => button.addEventListener("click", () => { state.services.unshift(...state.services.splice(state.services.findIndex((item) => item.id === button.dataset.profile), 1)); save(); location.hash = "portfolio"; }));
+  document.querySelectorAll("[data-profile]").forEach((button) => button.addEventListener("click", () => {
+    state.viewingProfileId = button.dataset.profile;
+    save();
+    location.hash = "portfolio";
+  }));
   document.querySelectorAll("[data-quick-reply]").forEach((button) => button.addEventListener("click", () => {
     const input = document.querySelector("#messageText");
     if (input) input.value = button.dataset.quickReply;
@@ -529,6 +653,8 @@ function bindActions() {
   document.querySelectorAll("[data-attach]").forEach((button) => button.addEventListener("click", () => alert("Pièce jointe : vous pouvez ajouter un fichier ou une preuve de livraison en toute sécurité.")));
   const q = document.querySelector("#q");
   if (q) ["input", "change"].forEach((eventName) => document.querySelectorAll("#q,#cat,#city,#budget").forEach((field) => field.addEventListener(eventName, filterDiscover)));
+  const hash = window.location.hash.slice(1) || "dashboard";
+  if (hash !== "portfolio") state.viewingProfileId = null;
   const form = document.querySelector("#messageForm");
   if (form) form.addEventListener("submit", sendMessage);
   const loginForm = document.querySelector("#loginForm");
@@ -583,23 +709,39 @@ async function tryLocalAuthLogin(contact, password) {
 }
 
 function filterDiscover() {
-  const q = document.querySelector("#q").value.toLowerCase();
-  const cat = document.querySelector("#cat").value;
-  const city = document.querySelector("#city").value;
-  const budget = Number(document.querySelector("#budget").value || Infinity);
+  const qField = document.querySelector("#q");
+  const catField = document.querySelector("#cat");
+  const cityField = document.querySelector("#city");
+  const budgetField = document.querySelector("#budget");
+
+  if (!qField || !catField || !cityField || !budgetField) return;
+
+  const q = qField.value.toLowerCase();
+  const cat = catField.value;
+  const city = cityField.value;
+  const budget = Number(budgetField.value || Infinity);
+
   const rows = state.services
     .filter((item) => cat === "Toutes" || item.category === cat)
-    .filter((item) => city === "Toutes" || item.mode === "remote" || item.city === city)
-    .filter((item) => item.price <= budget)
+    .filter((item) => city === "Toutes" || item.city === city || (item.mode === "both" && city !== "Toutes"))
+    .filter((item) => Number(item.price) <= budget)
     .filter((item) => !q || `${item.title} ${item.name} ${item.skills.join(" ")}`.toLowerCase().includes(q));
-  document.querySelector("#serviceResults").innerHTML = serviceCards(rows);
-  bindActions();
+
+  const grid = document.querySelector("#serviceResults");
+  if (grid) {
+    grid.innerHTML = serviceCards(rows);
+    bindActions();
+  }
 }
 
 function createOrder(serviceId) {
+  if (!sessionStorage.getItem("kayjob.session")) {
+    openModal("auth");
+    return;
+  }
   const service = state.services.find((item) => item.id === serviceId);
+  if (!service) return;
   if (apiBase) {
-    if (!sessionStorage.getItem("kayjob.session")) return openModal("auth");
     apiFetch("/api/orders", { method: "POST", body: JSON.stringify({ serviceId: Number(serviceId), amountTotal: Number(service.price) }) }).then(() => syncRemote()).then(() => { location.hash = "orders"; }).catch((error) => alert(error.message));
     return;
   }
@@ -614,9 +756,13 @@ function createOrder(serviceId) {
 }
 
 function addOffer(id) {
+  if (!sessionStorage.getItem("kayjob.session")) {
+    openModal("auth");
+    return;
+  }
   const mission = state.missions.find((item) => item.id === id);
+  if (!mission) return;
   if (apiBase) {
-    if (!sessionStorage.getItem("kayjob.session")) return openModal("auth");
     return apiFetch(`/api/missions/${Number(id)}/offers`, { method: "POST", body: JSON.stringify({ amountXof: Number(mission.budget), deliveryDays: 3, message: "Je peux réaliser cette mission avec un suivi clair." }) }).then(() => syncRemote()).catch((error) => alert(error.message));
   }
   mission.offers += 1;
@@ -682,6 +828,13 @@ modalForm.addEventListener("submit", (event) => {
     modal.close();
     return;
   }
+  if (!sessionStorage.getItem("kayjob.session") && ["service", "mission", "work"].includes(action)) {
+    event.preventDefault();
+    alert("Tu dois être connecté pour publier ou modifier du contenu.");
+    modal.close();
+    openModal("auth");
+    return;
+  }
   if (action === "auth-login" || action === "auth-signup") {
     event.preventDefault();
     const data = new FormData(modalForm);
@@ -708,18 +861,27 @@ modalForm.addEventListener("submit", (event) => {
     state.missions.unshift({ id: `mis-${Date.now()}`, title: data.get("title"), city: data.get("city"), category: "Design", budget: Number(data.get("budget")), mode: "remote", offers: 0 });
   }
   if (action === "work") {
-    state.services[0].works.unshift(makePortfolio(data.get("title"), "Lien", "././assets/portfolio-web.svg", data.get("url") || "https://kayjob.sn/projets", data.get("description")));
+    if (!isViewingOwnProfile()) {
+      alert("Tu ne peux modifier que ton propre portfolio.");
+      modal.close();
+      return;
+    }
+    const profile = getViewingProfile();
+    if (!profile) {
+      alert("Aucun profil à modifier.");
+      modal.close();
+      return;
+    }
+    profile.works.unshift(makePortfolio(data.get("title"), "Lien", "././assets/portfolio-web.svg", data.get("url") || "https://kayjob.sn/projets", data.get("description")));
   }
   state.notifications.unshift("Action enregistrée dans KayJob.");
   save();
   render();
 });
 
-document.querySelector("#quickMission").addEventListener("click", () => openModal("mission"));
-document.querySelector("#resetDemo").addEventListener("click", () => {
-  localStorage.removeItem(storageKey);
-  state = structuredClone(seed);
-  render();
+document.querySelector("#quickMission").addEventListener("click", () => {
+  if (!ensureLoggedInForAction("auth")) return;
+  openModal("mission");
 });
 
 document.querySelector("#showLogin")?.addEventListener("click", () => openAuth("login"));
