@@ -1,6 +1,6 @@
 const storageKey = "kayjob.webapp.state";
 const stateVersion = 2;
-const defaultApiBase = location.protocol === "file:" || ["localhost", "127.0.0.1", ""].includes(location.hostname) ? "" : "https://kayjob-api.onrender.com";
+const defaultApiBase = "";
 const configuredApiBase = String(globalThis.KAYJOB_API_URL || "").includes("__KAYJOB_API_URL__") ? "" : globalThis.KAYJOB_API_URL;
 const apiBase = String(configuredApiBase || localStorage.getItem("kayjob.api.url") || defaultApiBase).replace(/\/$/, "");
 const categories = ["Informatique", "Design", "Média", "Éducation", "Digital", "Créatif", "Services physiques"];

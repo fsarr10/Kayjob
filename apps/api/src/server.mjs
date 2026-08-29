@@ -6,10 +6,24 @@ import { redactContactContent } from "./message-safety.mjs";
 import { signedDownload, signedUpload, streamObject, storageConfigured } from "./storage.mjs";
 
 const port = Number(process.env.PORT || process.env.API_PORT || 4000);
+
+function corsOrigin(req) {
+  const origin = String(req.headers.origin || "");
+  const allowed = String(process.env.CORS_ORIGIN || "https://kayjob.vercel.app")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (!origin) return allowed[0] || "*";
+  let originHost = "";
+  try { originHost = new URL(origin).hostname; } catch { originHost = ""; }
+  if (allowed.includes("*") || allowed.includes(origin) || /\.vercel\.app$/i.test(originHost)) return origin;
+  return allowed[0] || origin;
+}
+
 const json = (res, status, body) => {
   res.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
-    "access-control-allow-origin": process.env.CORS_ORIGIN || "*",
+    "access-control-allow-origin": corsOrigin(res.req || {}),
     "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
     "access-control-allow-headers": "content-type, authorization, x-user-id, x-client, x-provider-signature",
     "access-control-max-age": "600",
@@ -730,4 +744,7 @@ async function route(req, res) {
   return json(res, 404, { error: "Route not found" });
 }
 
-createServer((req, res) => route(req, res).catch((error) => json(res, error.statusCode || 500, { error: error.message }))).listen(port, () => console.log(`KayJob API listening on http://localhost:${port}`));
+createServer((req, res) => {
+  res.req = req;
+  return route(req, res).catch((error) => json(res, error.statusCode || 500, { error: error.message }));
+}).listen(port, () => console.log(`KayJob API listening on http://localhost:${port}`));
