@@ -176,11 +176,14 @@ textarea { min-height: 92px; padding-top: 10px; resize: vertical; }
 .chat-message.me .bubble-wrap { background: linear-gradient(135deg, var(--green), #20a36d); border-color: transparent; color: white; }
 .chat-message.me .bubble-meta { color: rgba(255,255,255,.86); }
 .bubble-text { font-size: 14px; line-height: 1.5; white-space: pre-line; }
+.bubble-doc { display: inline-flex; align-items: center; min-height: 38px; border-radius: 10px; padding: 8px 10px; background: rgba(45,108,223,.09); color: var(--blue); font-size: 14px; font-weight: 850; text-decoration: none; word-break: break-word; }
+.chat-message.me .bubble-doc { background: rgba(255,255,255,.18); color: white; }
 .bubble-meta { display: flex; justify-content: flex-end; gap: 8px; font-size: 11px; margin-top: 6px; }
 .quick-replies { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 20px 14px; }
 .reply-pill { border: 1px solid var(--line); border-radius: 999px; background: #f3f9f5; color: var(--green-dark); padding: 9px 12px; font-size: 12px; font-weight: 800; cursor: pointer; }
 .chat-composer { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 10px; padding: 16px 20px 20px; border-top: 1px solid var(--line); background: #fff; }
 .chat-composer input { min-height: 46px; border: 1px solid var(--line); border-radius: 12px; padding: 0 14px; }
+.attachment-pending { grid-column: 1 / -1; margin: 0; color: var(--green-dark); font-size: 13px; font-weight: 800; }
 .app-status { display: inline-flex; align-items: center; gap: 7px; min-height: 30px; border-radius: 999px; padding: 0 10px; border: 1px solid var(--line); color: var(--muted); background: #fff; font-size: 12px; font-weight: 850; }
 .app-status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #aeb9c2; }
 .app-status.online::before { background: var(--green); box-shadow: 0 0 0 4px rgba(13,143,97,.12); }

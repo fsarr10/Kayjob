@@ -24,11 +24,13 @@ const seed = {
   notifications: [],
   disputes: [],
   account: null,
+  pendingAttachment: null,
   selectedOrderId: null
 };
 
 let state = load();
 if (!state.viewingProfileId) state.viewingProfileId = null;
+let pendingAttachmentFile = null;
 const view = document.querySelector("#view");
 const modal = document.querySelector("#modal");
 const modalForm = document.querySelector("#modalForm");
@@ -246,6 +248,15 @@ function safeUrl(value) {
   return /^(https?:|mailto:)/i.test(url) ? url : "#";
 }
 
+function displayFileName(url, fallback = "Fichier joint") {
+  try {
+    const path = new URL(url).pathname.split("/").filter(Boolean).pop() || fallback;
+    return decodeURIComponent(path).replace(/^[a-f0-9-]{20,}-/i, "");
+  } catch {
+    return fallback;
+  }
+}
+
 async function withBusyButton(button, label, task) {
   if (button?.disabled) return;
   const previous = button?.textContent;
@@ -288,8 +299,10 @@ async function loadMessagesForOrder(order) {
       id: String(message.id),
       me: Boolean(message.me),
       text: message.body,
+      attachmentUrl: message.attachmentUrl || "",
       time: new Date(message.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
-      status: message.me ? "Envoyé" : ""
+      status: message.me ? "Envoyé" : "",
+      attachment: Boolean(message.attachmentUrl)
     })) : []
   };
   state.messages = [...(state.messages || []).filter((item) => item.orderId !== order.id), thread];
@@ -558,7 +571,7 @@ function messages() {
         <div class="chat-messages">
           ${rows.map((message) => `<div class="chat-message ${message.me ? "me" : "them"}">
             <div class="bubble-wrap">
-              ${message.attachment ? `<div class="bubble-doc">Fichier joint · ${esc(message.text.replace("Pièce jointe : ", ""))}</div>` : `<div class="bubble-text">${esc(message.text)}</div>`}
+              ${message.attachment ? `<a class="bubble-doc" href="${attr(safeUrl(message.attachmentUrl))}" target="_blank" rel="noreferrer">${esc(message.text || displayFileName(message.attachmentUrl))}</a>` : `<div class="bubble-text">${esc(message.text)}</div>`}
               <div class="bubble-meta"><span>${esc(message.time)}</span>${message.me ? `<span>${esc(message.status || "Vu")}</span>` : ''}</div>
             </div>
           </div>`).join("")}
@@ -572,8 +585,10 @@ function messages() {
 
         <form class="chat-composer" id="messageForm">
           <button type="button" class="secondary" data-attach="file">Pièce jointe</button>
+          <input class="hidden" id="messageAttachment" type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain" />
           <input id="messageText" placeholder="Écrire un message..." maxlength="400" />
           <button class="primary" type="submit">Envoyer</button>
+          ${state.pendingAttachment ? `<p class="attachment-pending">Fichier prêt : ${esc(state.pendingAttachment.name)}</p>` : ""}
         </form>
       </section>
     </section>`;
@@ -764,7 +779,8 @@ function bindActions() {
     if (input) input.value = button.dataset.quickReply;
     input?.focus();
   }));
-  document.querySelectorAll("[data-attach]").forEach((button) => button.addEventListener("click", () => alert("Pièce jointe : vous pouvez ajouter un fichier ou une preuve de livraison en toute sécurité.")));
+  document.querySelectorAll("[data-attach]").forEach((button) => button.addEventListener("click", () => document.querySelector("#messageAttachment")?.click()));
+  document.querySelector("#messageAttachment")?.addEventListener("change", selectMessageAttachment);
   const q = document.querySelector("#q");
   if (q) ["input", "change"].forEach((eventName) => document.querySelectorAll("#q,#cat,#city,#budget").forEach((field) => field.addEventListener(eventName, filterDiscover)));
   const hash = window.location.hash.slice(1) || "dashboard";
@@ -815,6 +831,32 @@ async function uploadAccountAvatar(file) {
   const response = await fetch(upload.uploadUrl, { method: "PUT", headers: { "content-type": file.type }, body: file });
   if (!response.ok) throw new Error("Upload photo impossible.");
   if (!upload.publicUrl) throw new Error("Upload terminé, mais R2_PUBLIC_BASE_URL manque pour afficher la photo.");
+  return upload.publicUrl;
+}
+
+function selectMessageAttachment(event) {
+  const file = event.currentTarget.files?.[0] || null;
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) {
+    event.currentTarget.value = "";
+    pendingAttachmentFile = null;
+    state.pendingAttachment = null;
+    save();
+    return alert("La pièce jointe ne doit pas dépasser 10 Mo.");
+  }
+  pendingAttachmentFile = file;
+  state.pendingAttachment = { name: file.name, size: file.size, type: file.type };
+  save();
+  render();
+}
+
+async function uploadMessageAttachment(file) {
+  const allowed = /^(image\/(jpeg|png|webp|gif)|application\/pdf|text\/plain)$/i.test(file.type);
+  if (!allowed) throw new Error("Type de fichier non accepté.");
+  const upload = await apiFetch("/api/uploads/presign", { method: "POST", body: JSON.stringify({ purpose: "message", fileName: file.name, contentType: file.type }) });
+  const response = await fetch(upload.uploadUrl, { method: "PUT", headers: { "content-type": file.type }, body: file });
+  if (!response.ok) throw new Error("Upload pièce jointe impossible.");
+  if (!upload.publicUrl) throw new Error("Upload terminé, mais R2_PUBLIC_BASE_URL manque pour partager le fichier.");
   return upload.publicUrl;
 }
 
@@ -967,7 +1009,7 @@ async function sendMessage(event) {
   const submitter = event.submitter;
   const input = document.querySelector("#messageText");
   const value = input?.value.trim();
-  if (!value) return;
+  if (!value && !pendingAttachmentFile) return;
   const order = state.orders.find((item) => item.id === state.selectedOrderId) || state.orders[0];
   const thread = (state.messages || []).find((item) => item.orderId === state.selectedOrderId) || {
     orderId: state.selectedOrderId,
@@ -976,25 +1018,31 @@ async function sendMessage(event) {
     online: true,
     items: []
   };
-  const message = {
-    id: `m-${Date.now()}`,
-    me: true,
-    text: value,
-    time: new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
-    status: "Vu",
-    attachment: value.startsWith("Pièce jointe :")
-  };
   if (apiAvailable && sessionStorage.getItem("kayjob.session") && order) {
     try {
+      let attachmentUrl = "";
+      const attachmentName = pendingAttachmentFile?.name || "";
       await withBusyButton(submitter, "Envoi...", async () => {
         const apiOrderId = getApiOrderId(order);
-        const payload = { body: message.attachment ? value.replace("Pièce jointe : ", "") : value, attachmentUrl: message.attachment ? "https://storage.kayjob.sn/preuves/preuve-livraison.pdf" : null };
+        if (pendingAttachmentFile) attachmentUrl = await uploadMessageAttachment(pendingAttachmentFile);
+        const payload = { body: value || attachmentName || "Fichier joint", attachmentUrl: attachmentUrl || null };
         if (apiOrderId) await apiFetch(`/api/orders/${apiOrderId}/messages`, { method: "POST", body: JSON.stringify(payload) });
       });
+      const message = {
+        id: `m-${Date.now()}`,
+        me: true,
+        text: value || attachmentName || "Fichier joint",
+        attachmentUrl,
+        time: new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+        status: "Envoyé",
+        attachment: Boolean(attachmentUrl)
+      };
       if (!thread.items) thread.items = [];
       thread.items.push(message);
       if (!state.messages.some((item) => item.orderId === state.selectedOrderId)) state.messages.push(thread);
       input.value = "";
+      pendingAttachmentFile = null;
+      state.pendingAttachment = null;
       save();
     } catch (error) {
       alert(error instanceof Error ? error.message : "Message non envoyé");

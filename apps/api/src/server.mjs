@@ -463,7 +463,7 @@ export async function route(req, res) {
     const ownerId = await authenticatedUserId(req); const body = await readBody(req);
     const contentType = String(body.contentType || "application/octet-stream");
     const allowed = /^(image\/(jpeg|png|webp|gif)|video\/(mp4|quicktime)|application\/pdf|text\/plain)$/i.test(contentType);
-    if (!allowed || !body.fileName || !["avatar", "portfolio", "preview", "final", "dispute"].includes(body.purpose)) throw Object.assign(new Error("Unsupported file or purpose"), { statusCode: 422 });
+    if (!allowed || !body.fileName || !["avatar", "portfolio", "message", "preview", "final", "dispute"].includes(body.purpose)) throw Object.assign(new Error("Unsupported file or purpose"), { statusCode: 422 });
     const key = `${body.purpose}/${ownerId}/${randomUUID()}-${safeFileName(body.fileName)}`;
     const publicBaseUrl = String(process.env.R2_PUBLIC_BASE_URL || "").replace(/\/$/, "");
     return json(res, 200, { data: { key, contentType, expiresIn: 900, uploadUrl: await signedUpload(key, contentType), publicUrl: publicBaseUrl ? `${publicBaseUrl}/${key}` : "" } });
