@@ -442,7 +442,7 @@ export async function route(req, res) {
   const path = url.pathname;
   if (req.method === "OPTIONS") return json(res, 204, {});
   if (req.method === "GET" && path === "/health") return json(res, 200, { ok: true, service: "kayjob-api" });
-  if (req.method === "GET" && path === "/api/storage/status") { await authenticatedUserId(req); return json(res, 200, { data: { provider: "cloudflare-r2", configured: storageConfigured(), bucketPrivate: true, signedUploads: true, signedDownloads: true } }); }
+  if (req.method === "GET" && path === "/api/storage/status") { await authenticatedUserId(req); return json(res, 200, { data: { provider: "cloudflare-r2", configured: storageConfigured(), publicBaseUrlConfigured: Boolean(process.env.R2_PUBLIC_BASE_URL), bucketPrivate: true, signedUploads: true, signedDownloads: true } }); }
   if (req.method === "POST" && path === "/api/auth/signup") return json(res, 201, { data: await signUp(await readBody(req)) });
   if (req.method === "POST" && path === "/api/auth/login") return json(res, 200, { data: await login(await readBody(req)) });
   if (req.method === "POST" && path === "/api/auth/request-otp") return json(res, 200, { data: await requestOtp(await readBody(req)) });
@@ -463,9 +463,10 @@ export async function route(req, res) {
     const ownerId = await authenticatedUserId(req); const body = await readBody(req);
     const contentType = String(body.contentType || "application/octet-stream");
     const allowed = /^(image\/(jpeg|png|webp|gif)|video\/(mp4|quicktime)|application\/pdf|text\/plain)$/i.test(contentType);
-    if (!allowed || !body.fileName || !["portfolio", "preview", "final", "dispute"].includes(body.purpose)) throw Object.assign(new Error("Unsupported file or purpose"), { statusCode: 422 });
+    if (!allowed || !body.fileName || !["avatar", "portfolio", "preview", "final", "dispute"].includes(body.purpose)) throw Object.assign(new Error("Unsupported file or purpose"), { statusCode: 422 });
     const key = `${body.purpose}/${ownerId}/${randomUUID()}-${safeFileName(body.fileName)}`;
-    return json(res, 200, { data: { key, contentType, expiresIn: 900, uploadUrl: await signedUpload(key, contentType) } });
+    const publicBaseUrl = String(process.env.R2_PUBLIC_BASE_URL || "").replace(/\/$/, "");
+    return json(res, 200, { data: { key, contentType, expiresIn: 900, uploadUrl: await signedUpload(key, contentType), publicUrl: publicBaseUrl ? `${publicBaseUrl}/${key}` : "" } });
   }
   const profile = path.match(/^\/api\/profiles\/([a-z0-9_-]+)$/i);
 	  if (req.method === "GET" && profile) {

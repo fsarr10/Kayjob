@@ -623,7 +623,8 @@ function account() {
           <label>Email<input value="${attr(user.email || "")}" disabled /></label>
           <label>Téléphone<input value="${attr(user.phone || "")}" disabled /></label>
           <label>Ville<input name="city" value="${attr(user.city || "")}" placeholder="Dakar" /></label>
-          <label>Photo de profil<input name="avatarUrl" value="${attr(user.avatar || "")}" placeholder="https://..." /></label>
+          <label>Photo de profil<input name="avatarFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif" /></label>
+          <label>URL photo<input name="avatarUrl" value="${attr(user.avatar || "")}" placeholder="https://..." /></label>
         </div>
         <h2>Profil prestataire</h2>
         <label>Titre professionnel<input name="headline" value="${attr(user.headline || "")}" placeholder="Designer logo, développeur web..." /></label>
@@ -783,11 +784,13 @@ async function saveAccount(event) {
   if (status) status.textContent = "Enregistrement...";
   if (submit) submit.disabled = true;
   try {
+    const avatarFile = form.elements.avatarFile?.files?.[0] || null;
+    const uploadedAvatarUrl = avatarFile ? await uploadAccountAvatar(avatarFile) : "";
     const payload = {
       fullName: String(data.get("fullName") || "").trim(),
       pseudo: String(data.get("pseudo") || "").trim(),
       city: String(data.get("city") || "").trim(),
-      avatarUrl: String(data.get("avatarUrl") || "").trim(),
+      avatarUrl: uploadedAvatarUrl || String(data.get("avatarUrl") || "").trim(),
       headline: String(data.get("headline") || "").trim(),
       bio: String(data.get("bio") || "").trim(),
       availability: String(data.get("availability") || "").trim()
@@ -803,6 +806,16 @@ async function saveAccount(event) {
   } finally {
     if (submit) submit.disabled = false;
   }
+}
+
+async function uploadAccountAvatar(file) {
+  if (!file.type.startsWith("image/")) throw new Error("La photo doit être une image.");
+  if (file.size > 4 * 1024 * 1024) throw new Error("La photo ne doit pas dépasser 4 Mo.");
+  const upload = await apiFetch("/api/uploads/presign", { method: "POST", body: JSON.stringify({ purpose: "avatar", fileName: file.name, contentType: file.type }) });
+  const response = await fetch(upload.uploadUrl, { method: "PUT", headers: { "content-type": file.type }, body: file });
+  if (!response.ok) throw new Error("Upload photo impossible.");
+  if (!upload.publicUrl) throw new Error("Upload terminé, mais R2_PUBLIC_BASE_URL manque pour afficher la photo.");
+  return upload.publicUrl;
 }
 
 async function handleLogin(event) {
